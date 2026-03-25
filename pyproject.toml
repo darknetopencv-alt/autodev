@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "autodev-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI for unattended AI-driven development with multi-backend support (Codex, Claude, Gemini, OpenCode)"
 readme = "README.md"
 requires-python = ">=3.10"
