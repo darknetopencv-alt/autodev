@@ -65,7 +65,7 @@ def create_app() -> FastAPI:
                     _run_autodev_cmd(
                         ["autodev", "plan", "--intent", req.intent],
                         cwd=project_dir,
-                        timeout=300,
+                        timeout=None,
                     )
                     if req.auto_start:
                         _run_autodev_cmd(
@@ -341,7 +341,7 @@ def _load_project_log(project_dir: Path, tail_lines: int = 100) -> dict:
         return {"lines": []}
 
 
-def _run_autodev_cmd(cmd: list[str], cwd: Path, timeout: int = 60) -> str:
+def _run_autodev_cmd(cmd: list[str], cwd: Path, timeout: int | None = 60) -> str:
     """Run an autodev CLI command synchronously."""
     env = dict(os.environ)
     result = subprocess.run(

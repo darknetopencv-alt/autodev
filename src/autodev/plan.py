@@ -44,9 +44,6 @@ Output ONLY valid JSON (no markdown fences, no explanation) with this exact stru
       "description": "<1-2 sentence description of what to do>",
       "steps": ["<step 1>", "<step 2>", "..."],
       "docs": ["<relevant doc path if any>"],
-      "passes": false,
-      "blocked": false,
-      "block_reason": "",
       "verification": {{
         "path_patterns": ["<glob pattern for expected output files>"],
         "validate_commands": ["<command to verify, e.g. pytest, npm test>"]
@@ -104,9 +101,6 @@ Output ONLY valid JSON (no markdown fences, no explanation) with this exact stru
       "description": "<1-2 sentence description tied to the COCA spec>",
       "steps": ["<step 1>", "<step 2>", "..."],
       "docs": ["<relevant doc path if any>"],
-      "passes": false,
-      "blocked": false,
-      "block_reason": "",
       "verification": {{
         "path_patterns": ["<glob pattern for expected output files>"],
         "validate_commands": ["<command to verify, e.g. pytest, npm test>"]
@@ -180,9 +174,6 @@ Output ONLY valid JSON (no markdown fences, no explanation) with this exact stru
       "description": "<1-2 sentence description of the remaining work>",
       "steps": ["<step 1>", "<step 2>", "..."],
       "docs": ["<relevant doc path if any>"],
-      "passes": false,
-      "blocked": false,
-      "block_reason": "",
       "verification": {{
         "path_patterns": ["<glob pattern for expected output files>"],
         "validate_commands": ["<command to verify the task>"]
@@ -293,7 +284,6 @@ def generate_tasks_bundle_from_text(
     raw_output = run_backend_prompt(
         prompt,
         config,
-        timeout=300,
         command_label="plan",
     ).strip()
     json_text = _extract_json(raw_output)
@@ -336,6 +326,7 @@ def generate_tasks_bundle_from_text(
         verification.pop("evidence_keys", None)
         task["verification"] = verification
         task.pop("gate", None)
+        _normalize_generated_task_pending_state(task)
 
     audit_generated_task_store(data, context="Generated tasks failed audit")
 
@@ -464,6 +455,14 @@ def _merge_task_docs(docs: object, source_doc_ref: str) -> list[str]:
     return items
 
 
+def _normalize_generated_task_pending_state(task: dict) -> None:
+    """Force freshly generated tasks back into the pending lifecycle state."""
+    task["passes"] = False
+    task["blocked"] = False
+    task["block_reason"] = ""
+    task["blocked_at"] = ""
+
+
 def _build_planning_source(
     *,
     source_kind: str,
@@ -584,7 +583,6 @@ def replan_tasks_for_next_epoch(
     raw_output = run_backend_prompt(
         prompt,
         config,
-        timeout=300,
         command_label="replan",
     ).strip()
     json_text = _extract_json(raw_output)
@@ -630,6 +628,7 @@ def replan_tasks_for_next_epoch(
         if not isinstance(task, dict):
             continue
         task["docs"] = _merge_task_docs(task.get("docs"), source_doc_ref)
+        _normalize_generated_task_pending_state(task)
 
     audit_generated_task_store(next_data, context="Replanned tasks failed audit")
 
@@ -646,15 +645,12 @@ def run_backend_prompt(
     prompt: str,
     config: AutodevConfig,
     *,
-    timeout: int = 300,
+    timeout: int | None = None,
     command_label: str = "plan",
 ) -> str:
     """Run a one-shot backend prompt and return stdout text."""
     backend = config.backend.default
     cmd, env = _build_plan_command(prompt, config)
-    timeout_message = (
-        f"{timeout // 60} minutes" if timeout >= 60 and timeout % 60 == 0 else f"{timeout} seconds"
-    )
 
     try:
         result = subprocess.run(
@@ -670,6 +666,11 @@ def run_backend_prompt(
             f"{backend} CLI not found. Install it to use 'autodev {command_label}'."
         )
     except subprocess.TimeoutExpired:
+        timeout_message = (
+            f"{timeout // 60} minutes"
+            if timeout is not None and timeout >= 60 and timeout % 60 == 0
+            else f"{timeout} seconds"
+        )
         raise RuntimeError(f"{backend} CLI timed out after {timeout_message}")
 
     if result.returncode != 0:

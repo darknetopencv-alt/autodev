@@ -20,6 +20,7 @@ from autodev.plan import (
     generate_tasks_bundle_from_text,
     generate_tasks_from_text,
     replan_tasks_for_next_epoch,
+    run_backend_prompt,
 )
 from autodev.spec import generate_spec_from_text
 
@@ -319,6 +320,115 @@ class BackendAndPlanTests(unittest.TestCase):
             )
             self.assertIn("COCA Spec", data["planning_source"]["planning_text"])
 
+    def test_generate_tasks_bundle_from_text_does_not_force_plan_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                """
+                [project]
+                name = "demo"
+                code_dir = "."
+                """.strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+
+            with patch("autodev.spec.run_backend_prompt") as mock_spec_prompt, patch(
+                "autodev.plan.run_backend_prompt"
+            ) as mock_plan_prompt:
+                mock_spec_prompt.return_value = (
+                    "# Billing Dashboard - COCA Spec\n\n"
+                    "## Context\nA\n\n## Outcome\nB\n\n## Constraints\nC\n\n## Assertions\nD\n"
+                )
+                mock_plan_prompt.return_value = """
+                {
+                  "project": "demo",
+                  "tasks": [
+                    {
+                      "id": "P0-1",
+                      "title": "Setup billing dashboard",
+                      "description": "Create the initial billing dashboard shell.",
+                      "steps": ["Add the dashboard module"],
+                      "docs": [],
+                      "verification": {
+                        "path_patterns": ["src/**/*.py"],
+                        "validate_commands": ["pytest -q"]
+                      },
+                      "output": ["src/billing/dashboard.py"]
+                    }
+                  ]
+                }
+                """
+
+                generate_tasks_bundle_from_text(
+                    "Build a billing dashboard for team admins",
+                    cfg,
+                    output_path=root / "task.json",
+                    source_name="billing-dashboard",
+                )
+
+        self.assertNotIn("timeout", mock_plan_prompt.call_args.kwargs)
+
+    def test_generate_tasks_bundle_from_text_normalizes_generated_pending_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                """
+                [project]
+                name = "demo"
+                code_dir = "."
+                """.strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+
+            with patch("autodev.spec.run_backend_prompt") as mock_spec_prompt, patch(
+                "autodev.plan.run_backend_prompt"
+            ) as mock_plan_prompt:
+                mock_spec_prompt.return_value = (
+                    "# Billing Dashboard - COCA Spec\n\n"
+                    "## Context\nA\n\n## Outcome\nB\n\n## Constraints\nC\n\n## Assertions\nD\n"
+                )
+                mock_plan_prompt.return_value = """
+                {
+                  "project": "demo",
+                  "tasks": [
+                    {
+                      "id": "P0-1",
+                      "title": "Setup billing dashboard",
+                      "description": "Create the initial billing dashboard shell.",
+                      "steps": ["Add the dashboard module"],
+                      "docs": [],
+                      "passes": true,
+                      "blocked": true,
+                      "block_reason": "planner guessed wrong",
+                      "blocked_at": "2026-03-26T00:00:00+00:00",
+                      "verification": {
+                        "path_patterns": ["src/**/*.py"],
+                        "validate_commands": ["pytest -q"]
+                      },
+                      "output": ["src/billing/dashboard.py"]
+                    }
+                  ]
+                }
+                """
+
+                data, _ = generate_tasks_bundle_from_text(
+                    "Build a billing dashboard for team admins",
+                    cfg,
+                    output_path=root / "task.json",
+                    source_name="billing-dashboard",
+                )
+
+        self.assertFalse(data["tasks"][0]["passes"])
+        self.assertFalse(data["tasks"][0]["blocked"])
+        self.assertEqual(data["tasks"][0]["block_reason"], "")
+        self.assertEqual(data["tasks"][0]["blocked_at"], "")
+
     def test_generate_tasks_from_text_rejects_weak_generated_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -435,6 +545,121 @@ class BackendAndPlanTests(unittest.TestCase):
                 {"kind": "boolean", "source": "gate", "success_when": "all_checks_pass"},
             )
             self.assertEqual(next_data["tasks"][0]["execution"], {"strategy": "single_pass"})
+
+    def test_replan_tasks_for_next_epoch_does_not_force_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                """
+                [project]
+                name = "demo"
+                code_dir = "."
+                """.strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+
+            current_data = {
+                "project": "demo",
+                "planning_source": {
+                    "source_kind": "intent",
+                    "source_label": "inline intent",
+                    "source_name": "intent",
+                    "input_text": "Build a billing dashboard",
+                    "planning_text": "# Billing Dashboard - COCA Spec\n\n## Context\nA\n\n## Outcome\nB\n\n## Constraints\nC\n\n## Assertions\nD\n",
+                    "planning_source_doc": "docs/specs/billing-dashboard-coca-spec.md",
+                },
+                "learning_journal": [],
+                "tasks": [],
+            }
+
+            with patch("autodev.plan.run_backend_prompt") as mock_prompt:
+                mock_prompt.return_value = """
+                {
+                  "project": "demo",
+                  "tasks": [
+                    {
+                      "id": "P2-1",
+                      "title": "Polish billing charts",
+                      "description": "Improve the chart presentation.",
+                      "steps": ["Refine chart rendering"],
+                      "docs": [],
+                      "verification": {
+                        "path_patterns": ["src/**/*.py"],
+                        "validate_commands": ["pytest -q"]
+                      },
+                      "output": ["src/billing/charts.py"]
+                    }
+                  ]
+                }
+                """
+
+                replan_tasks_for_next_epoch(current_data, cfg, epoch=1)
+
+        self.assertNotIn("timeout", mock_prompt.call_args.kwargs)
+
+    def test_replan_tasks_for_next_epoch_normalizes_generated_pending_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                """
+                [project]
+                name = "demo"
+                code_dir = "."
+                """.strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+
+            current_data = {
+                "project": "demo",
+                "planning_source": {
+                    "source_kind": "intent",
+                    "source_label": "inline intent",
+                    "source_name": "intent",
+                    "input_text": "Build a billing dashboard",
+                    "planning_text": "# Billing Dashboard - COCA Spec\n\n## Context\nA\n\n## Outcome\nB\n\n## Constraints\nC\n\n## Assertions\nD\n",
+                    "planning_source_doc": "docs/specs/billing-dashboard-coca-spec.md",
+                },
+                "learning_journal": [],
+                "tasks": [],
+            }
+
+            with patch("autodev.plan.run_backend_prompt") as mock_prompt:
+                mock_prompt.return_value = """
+                {
+                  "project": "demo",
+                  "tasks": [
+                    {
+                      "id": "P2-1",
+                      "title": "Polish billing charts",
+                      "description": "Improve the chart presentation.",
+                      "steps": ["Refine chart rendering"],
+                      "docs": [],
+                      "passes": true,
+                      "blocked": true,
+                      "block_reason": "leftover status",
+                      "blocked_at": "2026-03-26T00:00:00+00:00",
+                      "verification": {
+                        "path_patterns": ["src/**/*.py"],
+                        "validate_commands": ["pytest -q"]
+                      },
+                      "output": ["src/billing/charts.py"]
+                    }
+                  ]
+                }
+                """
+
+                next_data = replan_tasks_for_next_epoch(current_data, cfg, epoch=1)
+
+        self.assertFalse(next_data["tasks"][0]["passes"])
+        self.assertFalse(next_data["tasks"][0]["blocked"])
+        self.assertEqual(next_data["tasks"][0]["block_reason"], "")
+        self.assertEqual(next_data["tasks"][0]["blocked_at"], "")
 
     def test_replan_tasks_for_next_epoch_requires_reusable_planning_text(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -794,6 +1019,46 @@ class BackendAndPlanTests(unittest.TestCase):
         self.assertEqual(output_path, root / "docs" / "specs" / "demo-feature-coca-spec.md")
         self.assertTrue(output_path.exists())
         self.assertIn("COCA Spec", output_path.read_text(encoding="utf-8"))
+
+    def test_generate_spec_from_text_does_not_force_timeout(self) -> None:
+        cfg, _ = _load_temp_config(
+            """
+            [project]
+            name = "demo"
+            code_dir = "."
+
+            [backend]
+            default = "claude"
+            """
+        )
+
+        with patch("autodev.spec.run_backend_prompt") as mock_prompt:
+            mock_prompt.return_value = "# Demo Feature - COCA Spec\n\n## Context\n\nHello\n"
+
+            generate_spec_from_text("Build a demo feature", cfg, source_name="Demo Feature")
+
+        self.assertNotIn("timeout", mock_prompt.call_args.kwargs)
+
+    def test_run_backend_prompt_defaults_to_no_timeout(self) -> None:
+        cfg, _ = _load_temp_config(
+            """
+            [project]
+            name = "demo"
+            code_dir = "."
+
+            [backend]
+            default = "codex"
+            """
+        )
+
+        result = unittest.mock.Mock(returncode=0, stdout="ok", stderr="")
+        with patch("autodev.plan._build_plan_command", return_value=(["codex", "exec", "hello"], None)), patch(
+            "autodev.plan.subprocess.run", return_value=result
+        ) as mock_run:
+            output = run_backend_prompt("hello", cfg)
+
+        self.assertEqual(output, "ok")
+        self.assertIsNone(mock_run.call_args.kwargs["timeout"])
 
 
 if __name__ == "__main__":

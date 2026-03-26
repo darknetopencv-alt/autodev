@@ -75,7 +75,6 @@ def generate_spec_from_text(
     raw_output = run_backend_prompt(
         prompt,
         config,
-        timeout=300,
         command_label="spec",
     )
     markdown = _extract_markdown(raw_output)
