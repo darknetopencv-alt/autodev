@@ -16,6 +16,12 @@ DEFAULT_PROJECT_SKILLS: tuple[str, ...] = (
     "spec-driven-develop",
     "find-skills",
     "skill-creator",
+    "color-font-skill",
+    "design-style-skill",
+    "ppt-editing-skill",
+    "ppt-orchestra-skill",
+    "slide-making-skill",
+    "pptx-agents",
 )
 
 

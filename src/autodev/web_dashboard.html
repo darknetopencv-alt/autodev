@@ -1,33 +1,49 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>autodev - 项目管理面板</title>
+  <title>autodev - 项目管理面板 (shadcn/ui flavor)</title>
   <style>
+    /* shadcn/ui zinc dark theme variables */
     :root {
-      --bg-app: #0e0e0e;
-      --bg-sidebar: #131316;
-      --bg-panel: #1a1a1f;
-      --bg-panel-hover: #222228;
-      --bg-selected: #2a2a35;
-      --border-color: #27272a;
-      --text-main: #f3f4f6;
-      --text-muted: #a1a1aa;
-      --accent-purple: #8b5cf6;
-      --accent-blue: #3b82f6;
-      --btn-primary-bg: #ffffff;
-      --btn-primary-text: #000000;
+      --background: #09090b;
+      --foreground: #fafafa;
 
-      --running: #2dd4bf;
-      --completed: #22c55e;
-      --blocked: #f97316;
-      --pending: #60a5fa;
-      --waiting: #facc15;
-      --idle: #94a3b8;
-      --planning: #818cf8;
-      --danger: #ef4444;
+      --card: #09090b;
+      --card-foreground: #fafafa;
+
+      --popover: #09090b;
+      --popover-foreground: #fafafa;
+
+      --primary: #fafafa;
+      --primary-foreground: #18181b;
+
+      --secondary: #27272a;
+      --secondary-foreground: #fafafa;
+
+      --muted: #27272a;
+      --muted-foreground: #a1a1aa;
+
+      --accent: #27272a;
+      --accent-foreground: #fafafa;
+
+      --destructive: #7f1d1d;
+      --destructive-foreground: #fafafa;
+
+      --border: #27272a;
+      --input: #27272a;
+      --ring: #d4d4d8;
+      --radius: 0.5rem;
+
+      /* custom status colors aligned with shadcn */
+      --success: #166534;
+      --success-fg: #4ade80;
+      --warning: #78350f;
+      --warning-fg: #fbbf24;
+      --info: #1e3a8a;
+      --info-fg: #60a5fa;
     }
 
     * {
@@ -37,12 +53,16 @@
     }
 
     body {
-      font-family: "Inter", "IBM Plex Sans", "Segoe UI", sans-serif;
-      background: var(--bg-app);
-      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+      background-color: var(--background);
+      color: var(--foreground);
       display: flex;
       height: 100vh;
       overflow: hidden;
+      font-size: 0.875rem;
+      /* text-sm */
+      line-height: 1.25rem;
+      -webkit-font-smoothing: antialiased;
     }
 
     /* Scrollbars */
@@ -56,12 +76,45 @@
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #333;
-      border-radius: 4px;
+      background: var(--muted);
+      border-radius: var(--radius);
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #555;
+      background: var(--border);
+    }
+
+    /* Forms */
+    input,
+    textarea,
+    select {
+      display: flex;
+      width: 100%;
+      border-radius: calc(var(--radius) - 2px);
+      border: 1px solid var(--input);
+      background-color: transparent;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      color: var(--foreground);
+      transition: box-shadow 0.2s, border-color 0.2s;
+      outline: none;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: var(--muted-foreground);
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--ring);
+      box-shadow: 0 0 0 1px var(--ring);
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
     }
 
     /* Buttons */
@@ -69,230 +122,248 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      background: var(--bg-panel);
-      color: var(--text-main);
-      cursor: pointer;
-      font-size: 13px;
+      gap: 0.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      font-size: 0.875rem;
       font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    .btn:hover {
-      background: var(--bg-panel-hover);
-      border-color: #3f3f46;
-    }
-
-    .btn-primary {
-      background: var(--btn-primary-bg);
-      color: var(--btn-primary-text);
-      border-color: transparent;
-      font-weight: 600;
-    }
-
-    .btn-primary:hover {
-      background: #e5e5e5;
-      border-color: transparent;
-    }
-
-    .btn-danger {
-      color: var(--danger);
-      border-color: rgba(239, 68, 68, 0.5);
-    }
-
-    .btn-danger:hover {
-      background: rgba(239, 68, 68, 0.1);
-      border-color: var(--danger);
+      transition: background-color 0.2s, color 0.2s;
+      outline: none;
+      cursor: pointer;
+      border: none;
+      height: 2.25rem;
+      padding: 0 1rem;
     }
 
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: var(--primary-foreground);
+    }
+
+    .btn-primary:hover {
+      background-color: #e4e4e7;
+    }
+
+    .btn-secondary {
+      background-color: var(--secondary);
+      color: var(--secondary-foreground);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--muted);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      border: 1px solid var(--input);
+      color: var(--foreground);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--accent);
+      color: var(--accent-foreground);
+    }
+
+    .btn-destructive {
+      background-color: var(--destructive);
+      color: var(--destructive-foreground);
+    }
+
+    .btn-destructive:hover {
+      background-color: #991b1b;
+    }
+
+    .btn-icon {
+      height: 2.25rem;
+      width: 2.25rem;
+      padding: 0;
     }
 
     /* Badges */
     .badge {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      padding: 2px 8px;
-      border-radius: 6px;
-      font-size: 11px;
+      border-radius: 9999px;
+      border: 1px solid transparent;
+      padding: 0.125rem 0.625rem;
+      font-size: 0.75rem;
       font-weight: 600;
-      border: 1px solid currentColor;
+      transition: colors 0.2s;
     }
 
-    .badge-running {
-      color: var(--running);
-      background: rgba(45, 212, 191, 0.1);
+    .badge-outline {
+      border-color: var(--border);
+      color: var(--foreground);
     }
 
-    .badge-completed {
-      color: var(--completed);
-      background: rgba(34, 197, 94, 0.1);
+    .badge-success {
+      background-color: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border-color: rgba(34, 197, 94, 0.2);
     }
 
-    .badge-blocked {
-      color: var(--blocked);
-      background: rgba(249, 115, 22, 0.1);
+    .badge-warning {
+      background-color: rgba(234, 179, 8, 0.15);
+      color: #fbbf24;
+      border-color: rgba(234, 179, 8, 0.2);
     }
 
-    .badge-pending {
-      color: var(--pending);
-      background: rgba(96, 165, 250, 0.1);
+    .badge-info {
+      background-color: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border-color: rgba(59, 130, 246, 0.2);
     }
 
-    .badge-waiting {
-      color: var(--waiting);
-      background: rgba(250, 204, 21, 0.1);
+    .badge-destructive {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.2);
     }
 
-    .badge-idle {
-      color: var(--idle);
-      background: rgba(148, 163, 184, 0.1);
+    .badge-secondary {
+      background-color: var(--secondary);
+      color: var(--secondary-foreground);
     }
 
-    .badge-planning {
-      color: var(--planning);
-      background: rgba(129, 140, 248, 0.1);
-    }
-
-    /* Sidebar */
+    /* Layout */
     .sidebar {
-      width: 280px;
-      min-width: 280px;
-      background: var(--bg-sidebar);
-      border-right: 1px solid var(--border-color);
+      width: 16rem;
+      /* 256px */
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      background-color: var(--background);
       display: flex;
       flex-direction: column;
     }
 
     .sidebar-header {
-      padding: 20px 16px;
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      border-bottom: 1px solid var(--border-color);
+      gap: 1rem;
     }
 
-    .user-profile {
+    .user-select {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .user-select:hover {
+      background-color: var(--accent);
     }
 
     .avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: #ffffff;
-      color: #000;
+      height: 2rem;
+      width: 2rem;
+      border-radius: calc(var(--radius) - 2px);
+      background-color: var(--primary);
+      color: var(--primary-foreground);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
-      font-size: 14px;
-    }
-
-    .user-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .user-name {
-      font-size: 14px;
       font-weight: 600;
+      font-size: 0.875rem;
     }
 
-    .workspace-label {
-      font-size: 12px;
-      color: var(--text-muted);
+    .user-select-info {
+      flex: 1;
+      overflow: hidden;
     }
 
-    .btn-new-project {
-      width: 100%;
-      justify-content: center;
-      padding: 10px;
-      border-radius: 8px;
+    .user-select-name {
+      font-weight: 500;
+      font-size: 0.875rem;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .user-select-desc {
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .sidebar-nav-title {
+      padding: 1rem 1.5rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--muted-foreground);
     }
 
     .sidebar-nav {
       flex: 1;
       overflow-y: auto;
-      padding: 12px;
+      padding: 0.5rem;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 0.25rem;
     }
 
-    .nav-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin: 12px 0 8px 8px;
-    }
-
-    .project-item {
+    .nav-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 13px;
+      padding: 0.5rem 0.75rem;
+      border-radius: calc(var(--radius) - 2px);
+      color: var(--muted-foreground);
       font-weight: 500;
+      cursor: pointer;
       transition: all 0.2s;
     }
 
-    .project-item:hover {
-      background: var(--bg-panel-hover);
-      color: var(--text-main);
+    .nav-item:hover {
+      background-color: var(--accent);
+      color: var(--accent-foreground);
     }
 
-    .project-item.active {
-      background: var(--bg-selected);
-      color: var(--text-main);
+    .nav-item.active {
+      background-color: var(--accent);
+      color: var(--accent-foreground);
     }
 
-    .project-item-name {
+    .nav-item-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      overflow: hidden;
+    }
+
+    .nav-item-text {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .project-item-icon {
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .project-item.active .project-item-icon {
-      color: var(--accent-purple);
     }
 
     .sidebar-footer {
-      padding: 16px;
-      border-top: 1px solid var(--border-color);
-      font-size: 12px;
-      color: var(--text-muted);
+      padding: 1rem;
+      border-top: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
     }
 
-    /* Main Area */
-    .main-area {
+    .main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: var(--bg-app);
+      background-color: var(--background);
+      overflow: hidden;
       position: relative;
     }
 
@@ -302,15 +373,15 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: var(--text-muted);
-      text-align: center;
+      gap: 1rem;
+      color: var(--muted-foreground);
     }
 
-    .empty-state h2 {
-      font-size: 20px;
-      font-weight: 500;
-      margin-bottom: 12px;
-      color: var(--text-main);
+    .empty-state h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--foreground);
+      letter-spacing: -0.025em;
     }
 
     .detail-view {
@@ -324,293 +395,358 @@
     }
 
     .main-header {
-      padding: 20px 32px;
-      border-bottom: 1px solid var(--border-color);
+      height: 4rem;
+      padding: 0 2rem;
+      border-bottom: 1px solid var(--border);
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      background: var(--bg-app);
-      z-index: 10;
+      flex-shrink: 0;
     }
 
-    .title-group {
+    .main-header-title {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 1rem;
     }
 
-    .main-title {
-      font-size: 18px;
+    .main-header-title h2 {
+      font-size: 1.125rem;
       font-weight: 600;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.025em;
     }
 
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .scroll-content {
+    .main-content {
       flex: 1;
-      overflow-y: auto;
-      padding: 32px;
+      overflow: hidden;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      min-height: 0;
     }
 
-    /* Stats */
-    .stats-row {
+    /* Cards */
+    .card {
+      background-color: var(--card);
+      color: var(--card-foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .card-header {
       display: flex;
-      gap: 16px;
-      margin-bottom: 32px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 0.375rem;
+      padding: 1.5rem;
+    }
+
+    .card-title {
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      line-height: 1;
+    }
+
+    .card-description {
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+    }
+
+    .card-content {
+      padding: 1.5rem;
+      padding-top: 0;
+    }
+
+    /* Stats row */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
     }
 
     .stat-card {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 16px 20px;
-      flex: 1;
-      min-width: 140px;
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background-color: var(--card);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
     }
 
-    .stat-label {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
+    .stat-title {
+      font-size: 0.875rem;
       font-weight: 500;
+      color: var(--muted-foreground);
     }
 
     .stat-value {
-      font-size: 24px;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
-    /* Execution Blocks (Like the antigravity execution plan) */
-    .execution-plan {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      margin-bottom: 24px;
-      overflow: hidden;
-    }
-
-    .execution-header {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .execution-badge {
-      font-size: 10px;
+      font-size: 1.5rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(139, 92, 246, 0.15);
-      color: var(--accent-purple);
-      text-transform: uppercase;
+      letter-spacing: -0.025em;
     }
 
-    .execution-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .execution-body {
-      padding: 16px;
-      color: var(--text-muted);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .execution-body strong {
-      color: var(--text-main);
-    }
-
-    .current-task-detail {
-      padding-left: 12px;
-      border-left: 2px solid var(--accent-purple);
-      margin-top: 8px;
-    }
-
-    /* Grid layout for Task Queue & Logs */
-    .content-grid {
+    /* Execution Split */
+    .layout-split {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+      gap: 1.5rem;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .layout-split>.card {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .layout-split>.card>.card-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
 
     @media (max-width: 1024px) {
-      .content-grid {
+      .layout-split {
         grid-template-columns: 1fr;
       }
     }
 
-    .task-queue-list {
+    .task-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 0.5rem;
     }
 
-    .task-item {
+    .task-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 10px 12px;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) - 2px);
+      background-color: var(--background);
     }
 
-    .task-item-title {
-      font-size: 13px;
+    .task-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      overflow: hidden;
+    }
+
+    .task-name {
       font-weight: 500;
+      font-size: 0.875rem;
     }
 
-    .task-item-id {
-      font-size: 11px;
-      color: var(--text-muted);
-      font-family: monospace;
+    .task-id {
+      font-size: 0.75rem;
+      color: var(--muted-foreground);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
 
-    /* Logs */
     .terminal {
-      background: #000;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 16px;
-      font-family: "JetBrains Mono", "Fira Code", monospace;
-      font-size: 12px;
-      line-height: 1.6;
-      height: 500px;
-      overflow-y: auto;
+      background-color: #000000;
       color: #a1a1aa;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+      padding: 1rem;
+      border-radius: calc(var(--radius) - 2px);
+      flex: 1;
+      min-height: 300px;
+      overflow-y: auto;
+      line-height: 1.5;
     }
 
     .terminal-line {
-      margin-bottom: 2px;
       word-break: break-all;
+      margin-bottom: 2px;
     }
 
-    .terminal-line:last-child {
-      margin-bottom: 0;
+    /* Log level colors */
+    .log-timestamp {
+      color: #6b7280;
     }
 
-    /* Modal */
-    .modal-overlay {
-      display: none;
+    .log-level-running {
+      color: #22d3ee;
+      font-weight: 600;
+    }
+
+    .log-level-completed,
+    .log-level-passed {
+      color: #4ade80;
+      font-weight: 600;
+    }
+
+    .log-level-error,
+    .log-level-failed {
+      color: #f87171;
+      font-weight: 600;
+    }
+
+    .log-level-warning,
+    .log-level-blocked {
+      color: #fbbf24;
+      font-weight: 600;
+    }
+
+    .log-level-validating {
+      color: #a78bfa;
+      font-weight: 600;
+    }
+
+    .log-level-info {
+      color: #60a5fa;
+    }
+
+    .log-status {
+      color: #22d3ee;
+    }
+
+    .log-path {
+      color: #6b7280;
+    }
+
+    .log-task-id {
+      color: #c084fc;
+      font-weight: 500;
+    }
+
+    .log-separator {
+      color: #374151;
+    }
+
+    .log-key {
+      color: #93c5fd;
+    }
+
+    .log-value {
+      color: #d1d5db;
+    }
+
+    .log-bracket {
+      color: #6b7280;
+    }
+
+    .log-pipe {
+      color: #4b5563;
+    }
+
+    /* Dialog/Modal */
+    .dialog-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.6);
+      z-index: 50;
+      background-color: rgba(0, 0, 0, 0.8);
       backdrop-filter: blur(4px);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
+      display: none;
+      place-items: center;
     }
 
-    .modal-overlay.active {
-      display: flex;
+    .dialog-overlay.active {
+      display: grid;
     }
 
-    .modal {
-      background: var(--bg-sidebar);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 24px;
-      width: 480px;
-      max-width: 90vw;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-    }
-
-    .modal h2 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 20px;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 6px;
-      color: var(--text-muted);
-    }
-
-    .form-group input,
-    .form-group textarea,
-    .form-group select {
+    .dialog-content {
+      background-color: var(--background);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       width: 100%;
-      padding: 10px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-      background: var(--bg-app);
-      color: var(--text-main);
-      font-size: 13px;
-      font-family: inherit;
-      transition: border-color 0.2s;
-    }
-
-    .form-group textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
-
-    .form-group input:focus,
-    .form-group textarea:focus,
-    .form-group select:focus {
-      outline: none;
-      border-color: var(--accent-purple);
-    }
-
-    .form-check {
+      max-width: 32rem;
+      /* 512px */
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      gap: 1.5rem;
       display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
+      flex-direction: column;
     }
 
-    .form-check input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--accent-purple);
+    .dialog-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      text-align: left;
     }
 
-    .modal-actions {
+    .dialog-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+    }
+
+    .dialog-description {
+      font-size: 0.875rem;
+      color: var(--muted-foreground);
+    }
+
+    .dialog-footer {
       display: flex;
       justify-content: flex-end;
-      gap: 12px;
-      margin-top: 24px;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
     }
 
-    .form-error {
-      color: var(--danger);
-      font-size: 12px;
-      margin-top: 6px;
+    .label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .form-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .error-msg {
+      color: #ef4444;
+      font-size: 0.8rem;
+      font-weight: 500;
       display: none;
     }
 
-    /* Toasts */
-    .toast {
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 0.25rem;
+      accent-color: var(--primary);
+    }
+
+    /* Toaster */
+    .toaster {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 2000;
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 13px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      transition: all 0.3s;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .toast {
+      background-color: var(--border);
+      border: 1px solid var(--border);
+      color: var(--foreground);
+      padding: 1rem 1.5rem;
+      border-radius: calc(var(--radius) - 2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: opacity 0.3s, transform 0.3s;
       opacity: 0;
       transform: translateY(10px);
     }
@@ -620,25 +756,16 @@
       transform: translateY(0);
     }
 
-    .toast.error {
-      border-left: 3px solid var(--danger);
-    }
-
-    .toast.success {
-      border-left: 3px solid var(--completed);
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid var(--border-color);
-      border-top-color: currentColor;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+    /* Loading Icon */
+    .lucide-loader-2 {
+      animation: spin 2s linear infinite;
     }
 
     @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
       to {
         transform: rotate(360deg);
       }
@@ -651,164 +778,200 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-header">
-      <div class="user-profile">
-        <div class="avatar">A</div>
-        <div class="user-info">
-          <div class="user-name">Auto-Dev CLI</div>
-          <div class="workspace-label">Local Workspace</div>
+      <div class="user-select">
+        <div class="avatar">
+          <!-- Icon placeholder for Logo -->
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5Z" />
+            <path d="m2 17 10 5 10-5" />
+            <path d="m2 12 10 5 10-5" />
+          </svg>
+        </div>
+        <div class="user-select-info">
+          <div class="user-select-name">Auto-Dev Workspace</div>
+          <div class="user-select-desc">Free Plan</div>
         </div>
       </div>
-      <button class="btn btn-primary btn-new-project" onclick="openNewProjectModal()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 5v14M5 12h14" />
+      <button class="btn btn-outline" style="width: 100%; justify-content: flex-start;" onclick="openNewProjectModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+          class="lucide lucide-plus">
+          <path d="M5 12h14" />
+          <path d="M12 5v14" />
         </svg>
-        新建项目
+        New Project
       </button>
     </div>
 
-    <div class="nav-label">Projects</div>
+    <div class="sidebar-nav-title">Projects</div>
     <div class="sidebar-nav" id="sidebar-projects">
-      <!-- Projects rendered here -->
+      <!-- Project list items injected here -->
     </div>
 
     <div class="sidebar-footer">
-      <span id="session-count">0 个活跃会话</span>
-      <span style="display:flex; gap:8px;">
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--completed);margin-top:4px;"></span>
-        Connected
-      </span>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span
+          style="display:inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: var(--success-fg);"></span>
+        <span id="session-count">0 Sessions</span>
+      </div>
     </div>
   </aside>
 
-  <!-- Main Area -->
-  <main class="main-area">
+  <!-- Main Content -->
+  <main class="main">
 
     <div id="empty-state" class="empty-state">
-      <h2>欢迎使用 Auto-Dev</h2>
-      <p>请在左侧选择一个项目，或者点击新建项目开始。</p>
+      <div
+        style="border: 1px dashed var(--border); padding: 3rem; border-radius: var(--radius); text-align: center; max-width: 400px; display:flex; flex-direction:column; gap:1.5rem;">
+        <div>
+          <h3 style="margin-bottom: 0.5rem;">No project selected</h3>
+          <p style="font-size: 0.875rem; color: var(--muted-foreground);">Select an existing project from the sidebar or
+            manually configure a new project workspace.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openNewProjectModal()">Create Project</button>
+      </div>
     </div>
 
     <div id="detail-view" class="detail-view">
       <header class="main-header">
-        <div class="title-group">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            style="color:var(--accent-purple)">
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-            <line x1="8" y1="21" x2="16" y2="21"></line>
-            <line x1="12" y1="17" x2="12" y2="21"></line>
-          </svg>
-          <h1 class="main-title" id="project-title">Project Name</h1>
-          <span id="project-badge" class="badge">Idle</span>
+        <div class="main-header-title">
+          <h2 id="project-title">Project Name</h2>
+          <span id="project-badge" class="badge badge-outline">Idle</span>
         </div>
-        <div class="header-actions">
-          <button class="btn" id="btn-start" onclick="startCurrentProject()">▶ 启动</button>
-          <button class="btn btn-danger" id="btn-stop" onclick="stopCurrentProject()">■ 停止</button>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <button class="btn btn-secondary btn-icon" id="btn-start" onclick="startCurrentProject()"
+            title="Start Execution">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="6 3 20 12 6 21 6 3" />
+            </svg>
+          </button>
+          <button class="btn btn-destructive btn-icon" id="btn-stop" onclick="stopCurrentProject()"
+            title="Stop Execution">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+            </svg>
+          </button>
         </div>
       </header>
 
-      <div class="scroll-content">
-        <!-- Stats Row -->
-        <div class="stats-row">
+      <div class="main-content">
+        <!-- Stats -->
+        <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-label">总进度</div>
-            <div class="stat-value" id="stat-progress">0%</div>
+            <span class="stat-title">Progress</span>
+            <span class="stat-value" id="stat-progress">0%</span>
           </div>
           <div class="stat-card">
-            <div class="stat-label">已完成任务</div>
-            <div class="stat-value" id="stat-completed">0</div>
+            <span class="stat-title">Completed Tasks</span>
+            <span class="stat-value" id="stat-completed">0</span>
           </div>
           <div class="stat-card">
-            <div class="stat-label">总任务数</div>
-            <div class="stat-value" id="stat-total">0</div>
+            <span class="stat-title">Total Tasks</span>
+            <span class="stat-value" id="stat-total">0</span>
           </div>
           <div class="stat-card">
-            <div class="stat-label">当前轮次</div>
-            <div class="stat-value" id="stat-epoch">1/1</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">后端模型</div>
-            <div class="stat-value" id="stat-backend" style="font-size:16px; margin-top:6px;">codex</div>
+            <span class="stat-title">Current Epoch</span>
+            <span class="stat-value" id="stat-epoch">1/1</span>
           </div>
         </div>
 
-        <div class="content-grid">
-          <!-- Left Column -->
-          <div>
-            <div class="execution-plan">
-              <div class="execution-header">
-                <span class="execution-badge">EXECUTION</span>
-                <span class="execution-title">当前任务 / Current Task</span>
+        <!-- Layout Split -->
+        <div class="layout-split">
+
+          <!-- Left Column: Tasks -->
+          <div style="display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; min-height: 0;">
+
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Current Task</h3>
+                <p class="card-description">The agent is currently working on this objective.</p>
               </div>
-              <div class="execution-body" id="current-task-body">
-                <div style="color:var(--text-muted)">当前没有正在执行的任务...</div>
+              <div class="card-content" id="current-task-body">
+                <div style="color:var(--muted-foreground); font-size: 0.875rem;">Waiting for task execution...</div>
               </div>
             </div>
 
-            <div class="execution-plan">
-              <div class="execution-header" style="background:transparent; border:none; padding-bottom:0;">
-                <span class="execution-title" style="color:var(--text-muted); font-size:12px;">任务队列 (Queue)</span>
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Task Queue</h3>
+                <p class="card-description">Upcoming and completed tasks for this project.</p>
               </div>
-              <div class="execution-body task-queue-list" id="task-queue-list">
-                <!-- Task rows go here -->
+              <div class="card-content task-list" id="task-queue-list">
+                <!-- Task items -->
               </div>
             </div>
+
           </div>
 
-          <!-- Right Column -->
-          <div>
-            <div class="execution-plan" style="background:#000;">
-              <div class="execution-header" style="border-bottom-color:#333;">
-                <span class="execution-badge"
-                  style="background:rgba(59,130,246,0.15); color:var(--accent-blue);">TERMINAL</span>
-                <span class="execution-title">运行日志</span>
-              </div>
+          <!-- Right Column: Terminal Logs -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Console Output</h3>
+              <p class="card-description">Live stdout and stderr from the Auto-Dev server.</p>
+            </div>
+            <div class="card-content">
               <div class="terminal" id="log-content">
-                <!-- log output -->
+                <!-- Logs -->
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </div>
   </main>
 
-  <!-- New Project Modal -->
-  <div id="new-project-modal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
-    <div class="modal">
-      <h2>新建项目</h2>
-      <div class="form-group">
-        <label>项目目录 Directory</label>
-        <input type="text" id="project-directory" placeholder="e.g. /home/user/projects/my-app" autocomplete="off">
-        <div class="form-error" id="dir-error"></div>
+  <!-- Create Project Dialog -->
+  <div id="new-project-dialog" class="dialog-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="dialog-content">
+      <div class="dialog-header">
+        <h2 class="dialog-title">Create project</h2>
+        <p class="dialog-description">Configure the workspace directory and intent for the automated developer agent.
+        </p>
       </div>
-      <div class="form-group">
-        <label>开发说明 / 需求 Intent</label>
-        <textarea id="project-intent" placeholder="描述你想要构建的项目..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>AI 后端 Backend</label>
-        <select id="project-backend">
-          <option value="codex">Codex</option>
-          <option value="claude">Claude</option>
-          <option value="gemini">Gemini</option>
-          <option value="opencode">OpenCode</option>
-        </select>
-      </div>
-      <div class="form-group" style="margin-top:20px;">
-        <div class="form-check">
+
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="form-item">
+          <label class="label">Project Directory</label>
+          <input type="text" id="project-directory" placeholder="/absolute/path/to/project">
+          <span class="error-msg" id="dir-error">Directory is required.</span>
+        </div>
+
+        <div class="form-item">
+          <label class="label">Development Intent</label>
+          <textarea id="project-intent"
+            placeholder="What should the agent build? e.g. A fastAPI boilerplate with SQLite."></textarea>
+        </div>
+
+        <div class="form-item">
+          <label class="label">Backend AI Model</label>
+          <select id="project-backend">
+            <option value="codex">Codex</option>
+            <option value="claude">Claude</option>
+            <option value="gemini">Gemini</option>
+            <option value="opencode">OpenCode</option>
+          </select>
+        </div>
+
+        <div class="checkbox-item" style="margin-top: 0.5rem;">
           <input type="checkbox" id="project-autostart" checked>
-          <label for="project-autostart" style="margin:0; font-weight:500;">创建后自动开始执行 (Auto-start)</label>
+          <label class="label" for="project-autostart" style="margin:0; cursor:pointer;">Auto-start execution
+            immediately</label>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="btn" onclick="closeNewProjectModal()">取消 (Cancel)</button>
-        <button class="btn btn-primary" id="create-btn" onclick="createProject()">创建项目 (Create)</button>
+
+      <div class="dialog-footer">
+        <button class="btn btn-outline" onclick="closeNewProjectModal()">Cancel</button>
+        <button class="btn btn-primary" id="create-btn" onclick="createProject()">Launch Project</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div id="toast" class="toast"></div>
+  <!-- Toaster Container -->
+  <div class="toaster" id="toaster"></div>
 
   <script>
     const API = '';
@@ -816,7 +979,7 @@
     let refreshTimer = null;
     let globalProjects = [];
 
-    // ==================== API Calls ====================
+    // ==================== API Toolkit ====================
     async function apiGet(path) {
       const resp = await fetch(API + path);
       if (!resp.ok) {
@@ -845,14 +1008,12 @@
         const data = await apiGet('/api/projects');
         globalProjects = data.projects || [];
         renderSidebarProjects(globalProjects);
-        document.getElementById('session-count').textContent = `${data.active_sessions || 0} 个活跃会话`;
+        document.getElementById('session-count').textContent = `${data.active_sessions || 0} Sessions`;
 
-        // If a project is currently open, verify it still exists
+        // Validation check
         if (currentProject) {
           const exists = globalProjects.find(p => p.name === currentProject);
-          if (!exists) {
-            closeDetailView();
-          }
+          if (!exists) closeDetailView();
         }
       } catch (e) {
         console.error('Failed to load projects:', e);
@@ -862,19 +1023,19 @@
     function renderSidebarProjects(projects) {
       const nav = document.getElementById('sidebar-projects');
       if (!projects || projects.length === 0) {
-        nav.innerHTML = '<div style="padding:12px; color:var(--text-muted); font-size:12px;">暂无项目</div>';
+        nav.innerHTML = '<div style="padding:0.5rem 1.5rem; color:var(--muted-foreground); font-size:0.75rem;">No projects found</div>';
         return;
       }
 
       nav.innerHTML = projects.map(p => {
         const isActive = p.name === currentProject;
         return `
-          <div class="project-item ${isActive ? 'active' : ''}" onclick="selectProject('${esc(p.name)}')">
-            <div class="project-item-name">
-              <svg class="project-item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-              ${esc(p.name)}
+          <div class="nav-item ${isActive ? 'active' : ''}" onclick="selectProject('${esc(p.name)}')">
+            <div class="nav-item-content">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="${isActive ? 'color: var(--foreground)' : ''}"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span class="nav-item-text">${esc(p.name)}</span>
             </div>
-            ${p.session_alive ? '<span style="width:6px;height:6px;border-radius:50%;background:var(--running);"></span>' : ''}
+            ${p.session_alive ? '<span style="width:6px;height:6px;border-radius:50%;background-color:var(--success-fg);"></span>' : ''}
           </div>
         `;
       }).join('');
@@ -883,15 +1044,12 @@
     // ==================== Detail View ====================
     function selectProject(name) {
       currentProject = name;
-      renderSidebarProjects(globalProjects); // update active state in sidebar
+      renderSidebarProjects(globalProjects); // refresh sidebar styles
 
       document.getElementById('empty-state').style.display = 'none';
       document.getElementById('detail-view').classList.add('active');
-
       document.getElementById('project-title').textContent = name;
-
-      // Clear current data while loading
-      document.getElementById('log-content').innerHTML = 'Loading...';
+      document.getElementById('log-content').innerHTML = 'Reading stdout stream...';
 
       startDetailRefresh();
       loadProjectDetail(name);
@@ -916,15 +1074,10 @@
       if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
     }
 
-    const statusLabels = {
-      idle: '空闲 Idle', starting: '启动中 Starting', running: '运行中 Running', validating: '验证中 Validating',
-      completed: '已完成 Completed', blocked: '已阻塞 Blocked', pending: '等待中 Pending',
-      planning: '规划中 Planning', waiting: '等待中 Waiting',
-    };
     const badgeClasses = {
-      idle: 'badge-idle', starting: 'badge-running', running: 'badge-running',
-      validating: 'badge-running', completed: 'badge-completed', blocked: 'badge-blocked',
-      pending: 'badge-pending', planning: 'badge-planning', waiting: 'badge-waiting',
+      idle: 'badge-outline', starting: 'badge-info', running: 'badge-info',
+      validating: 'badge-warning', completed: 'badge-success', blocked: 'badge-destructive',
+      pending: 'badge-outline', planning: 'badge-secondary', waiting: 'badge-warning'
     };
 
     async function loadProjectDetail(name) {
@@ -934,7 +1087,7 @@
           apiGet(`/api/projects/${encodeURIComponent(name)}/tasks`).catch(() => ({ tasks: [] })),
           apiGet(`/api/projects/${encodeURIComponent(name)}/log`).catch(() => ({ lines: [] })),
         ]);
-        if (currentProject !== name) return; // switched away during await
+        if (currentProject !== name) return;
         renderDetailView(name, status, tasks, logData);
       } catch (e) {
         console.error('Failed to load detail:', e);
@@ -946,67 +1099,61 @@
       const counts = status.counts || {};
       const runStatus = status.session_alive ? (run.status || 'running') : (run.status || 'idle');
 
-      const statusLabel = statusLabels[runStatus] || runStatus;
-      const badgeClass = badgeClasses[runStatus] || 'badge-idle';
+      const badgeClass = badgeClasses[runStatus] || 'badge-outline';
+      const pct = counts.total > 0 ? Math.round((counts.completed || 0) / counts.total * 100) : 0;
 
-      const total = counts.total || 0;
-      const completed = counts.completed || 0;
-      const pct = total > 0 ? Math.round(completed / total * 100) : 0;
-
-      // Header update
+      // Header Badge
       const badgeEl = document.getElementById('project-badge');
       badgeEl.className = `badge ${badgeClass}`;
-      badgeEl.textContent = statusLabel;
+      badgeEl.textContent = String(runStatus).toUpperCase();
 
       document.getElementById('btn-start').disabled = status.session_alive;
       document.getElementById('btn-stop').disabled = !status.session_alive;
 
-      // Stats update
+      // Stats
       document.getElementById('stat-progress').textContent = `${pct}%`;
-      document.getElementById('stat-completed').textContent = completed;
-      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-completed').textContent = counts.completed || 0;
+      document.getElementById('stat-total').textContent = counts.total || 0;
       document.getElementById('stat-epoch').textContent = `${run.current_epoch || 1}/${run.max_epochs || 1}`;
-      document.getElementById('stat-backend').textContent = status.backend || 'codex';
 
-      // Current Task
+      // Current Task Panel
       const curTaskEl = document.getElementById('current-task-body');
       if (run.current_task_id) {
         curTaskEl.innerHTML = `
-           <div style="font-size:11px; font-family:monospace; color:var(--text-muted); margin-bottom:4px;">${esc(run.current_task_id)}</div>
-           <strong style="font-size:14px;">${esc(run.current_task_title || 'Undisclosed Task')}</strong>
-           <div class="current-task-detail">
-             <div>尝试 (Attempt): ${run.current_attempt || 0}/${run.max_attempts || 0}</div>
-             <div>耗时 (Elapsed): ${run.heartbeat_elapsed_seconds || 0}s</div>
+           <div style="font-size:0.75rem; font-family:var(--font-mono); color:var(--muted-foreground); margin-bottom:0.5rem;">${esc(run.current_task_id)}</div>
+           <strong style="font-size:0.875rem; color:var(--foreground);">${esc(run.current_task_title || 'Undisclosed Task')}</strong>
+           <div style="margin-top:0.75rem; padding-left:0.75rem; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:0.25rem;">
+             <div>Attempt: ${run.current_attempt || 0}/${run.max_attempts || 0}</div>
+             <div>Elapsed Time: ${run.heartbeat_elapsed_seconds || 0}s</div>
            </div>
          `;
       } else {
-        curTaskEl.innerHTML = `<div style="color:var(--text-muted)">Project is currently resting...</div>`;
+        curTaskEl.innerHTML = `<div style="color:var(--muted-foreground); font-size: 0.875rem;">Project is currently resting...</div>`;
       }
 
       // Task Queue
       const queueEl = document.getElementById('task-queue-list');
       const taskRows = (tasks.tasks || []).map(t => {
         const ts = t.status || 'pending';
-        const tLabel = statusLabels[ts] || ts;
-        const tBadge = badgeClasses[ts] || 'badge-pending';
+        const tBadge = badgeClasses[ts] || 'badge-outline';
         return `
-          <div class="task-item">
-            <div>
-              <div class="task-item-title">${esc(t.title || t.name || '')}</div>
-              <div class="task-item-id">${esc(t.id || '')}</div>
+          <div class="task-row">
+            <div class="task-info">
+              <span class="task-name">${esc(t.title || t.name || '')}</span>
+              <span class="task-id">${esc(t.id || '')}</span>
             </div>
-            <span class="badge ${tBadge}">${tLabel}</span>
+            <span class="badge ${tBadge}">${String(ts).toUpperCase()}</span>
           </div>
         `;
       }).join('');
-      queueEl.innerHTML = taskRows || '<div style="color:var(--text-muted); padding:12px 0;">No tasks in queue</div>';
+      queueEl.innerHTML = taskRows || '<div style="color:var(--muted-foreground); padding:1rem 0; font-size:0.875rem; text-align:center;">No tasks identified</div>';
 
-      // Log
+      // Log Panel
       const logEl = document.getElementById('log-content');
-      const isScrolledToBottom = logEl.scrollHeight - logEl.clientHeight <= logEl.scrollTop + 20;
+      const isScrolledToBottom = logEl.scrollHeight - logEl.clientHeight <= logEl.scrollTop + 30;
 
-      const logLines = (logData.lines || []).map(line => `<div class="terminal-line">${esc(line)}</div>`).join('');
-      logEl.innerHTML = logLines || 'Waiting for output...';
+      const logLines = (logData.lines || []).map(line => `<div class="terminal-line">${colorizeLine(line)}</div>`).join('');
+      logEl.innerHTML = logLines || '<span style="color:var(--muted-foreground)">Waiting for output…</span>';
 
       if (isScrolledToBottom) {
         logEl.scrollTop = logEl.scrollHeight;
@@ -1018,34 +1165,28 @@
       if (!currentProject) return;
       try {
         await apiPost(`/api/projects/${encodeURIComponent(currentProject)}/start`, {});
-        showToast(`Started project: ${currentProject}`, 'success');
-        setTimeout(() => loadProjectDetail(currentProject), 500);
-        setTimeout(loadProjects, 500);
-      } catch (e) {
-        showToast('Failed to start: ' + e.message, 'error');
-      }
+        showToast(`Started pipeline for workspace: ${currentProject}`);
+        queueMicrotask(() => loadProjectDetail(currentProject));
+      } catch (e) { showToast('Failure: ' + e.message); }
     }
 
     async function stopCurrentProject() {
       if (!currentProject) return;
       try {
         await apiPost(`/api/projects/${encodeURIComponent(currentProject)}/stop`, {});
-        showToast(`Stopped project: ${currentProject}`, 'success');
-        setTimeout(() => loadProjectDetail(currentProject), 500);
-        setTimeout(loadProjects, 500);
-      } catch (e) {
-        showToast('Failed to stop: ' + e.message, 'error');
-      }
+        showToast(`Termination signal sent to workspace: ${currentProject}`);
+        queueMicrotask(() => loadProjectDetail(currentProject));
+      } catch (e) { showToast('Failure: ' + e.message); }
     }
 
-    // ==================== Modal ====================
+    // ==================== Modal (Dialog) ====================
     function openNewProjectModal() {
-      document.getElementById('new-project-modal').classList.add('active');
+      document.getElementById('new-project-dialog').classList.add('active');
       document.getElementById('project-directory').focus();
     }
 
     function closeNewProjectModal() {
-      document.getElementById('new-project-modal').classList.remove('active');
+      document.getElementById('new-project-dialog').classList.remove('active');
       document.getElementById('project-directory').value = '';
       document.getElementById('project-intent').value = '';
       document.getElementById('dir-error').style.display = 'none';
@@ -1062,30 +1203,29 @@
       const autostart = document.getElementById('project-autostart').checked;
 
       if (!directory) {
-        document.getElementById('dir-error').textContent = 'Please enter project directory path';
         document.getElementById('dir-error').style.display = 'block';
         return;
       }
 
       const btn = document.getElementById('create-btn');
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> 创建中...';
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-loader-2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Creating...`;
 
       try {
         const result = await apiPost('/api/projects', { directory, intent, backend, auto_start: autostart });
-        showToast(`Created project: ${result.name}`, 'success');
+        showToast(`Workspace initialized: ${result.name}`);
         closeNewProjectModal();
         await loadProjects();
-        selectProject(result.name); // automatically select it
+        selectProject(result.name);
       } catch (e) {
-        showToast('创建失败 (Create failed): ' + e.message, 'error');
+        showToast('Create Action Blocked System Error: ' + e.message);
       } finally {
         btn.disabled = false;
-        btn.textContent = '创建项目 (Create)';
+        btn.textContent = 'Launch Project';
       }
     }
 
-    // ==================== Utils ====================
+    // ==================== Utilities ====================
     function esc(s) {
       if (s === null || s === undefined) return '';
       return String(s)
@@ -1096,18 +1236,68 @@
         .replace(/'/g, '&#039;');
     }
 
-    function showToast(msg, type) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.className = `toast ${type || ''} show`;
-      setTimeout(() => { toast.className = 'toast'; }, 4000);
+    function colorizeLine(raw) {
+      // Strip ANSI escape codes
+      let line = String(raw).replace(/\x1b\[[0-9;]*m/g, '');
+      let s = esc(line);
+
+      // Colorize timestamp prefix: [2026-03-29 04:45:23]
+      s = s.replace(/^(\[?\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2}\]?\s*)/, '<span class="log-timestamp">$1</span>');
+
+      // Colorize status keywords
+      const statusMap = [
+        [/\b(RUNNING)\b/gi, 'log-level-running'],
+        [/\b(COMPLETED|PASSED|completed|passed|SUCCESS)\b/gi, 'log-level-completed'],
+        [/\b(ERROR|FAILED|FAILURE|error|failed)\b/gi, 'log-level-error'],
+        [/\b(WARNING|WARN|warning|warn)\b/gi, 'log-level-warning'],
+        [/\b(BLOCKED|blocked)\b/gi, 'log-level-blocked'],
+        [/\b(VALIDATING|validating)\b/gi, 'log-level-validating'],
+      ];
+      for (const [rx, cls] of statusMap) {
+        s = s.replace(rx, `<span class="${cls}">$1</span>`);
+      }
+
+      // Colorize task IDs like P0-1, P1-2, P2-1
+      s = s.replace(/\b(P\d+-\d+)\b/g, '<span class="log-task-id">$1</span>');
+
+      // Colorize pipe separators in table-like output
+      s = s.replace(/\|/g, '<span class="log-pipe">|</span>');
+
+      // Colorize key=value pairs (e.g. exit=0, task=P0-1)
+      s = s.replace(/\b(\w+)=([\w./%-]+)/g, '<span class="log-key">$1</span>=<span class="log-value">$2</span>');
+
+      // Colorize file paths
+      s = s.replace(/(&#039;[^&#]*&#039;)/g, '<span class="log-path">$1</span>');
+
+      // Colorize leading status markers like +| or ─
+      s = s.replace(/^(\+\|)/, '<span class="log-status">$1</span>');
+      s = s.replace(/^(─+)/, '<span class="log-separator">$1</span>');
+      s = s.replace(/^(##\s+)/, '<span class="log-level-info">$1</span>');
+
+      return s;
     }
 
-    // Init
+    function showToast(msg) {
+      const container = document.getElementById('toaster');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      container.appendChild(toast);
+
+      // trigger animation
+      requestAnimationFrame(() => {
+        toast.classList.add('show');
+      });
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Boot
     loadProjects();
-    setInterval(() => {
-      loadProjects();
-    }, 4000);
+    setInterval(loadProjects, 4000);
   </script>
 </body>
 

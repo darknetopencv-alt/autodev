@@ -62,10 +62,11 @@ def create_app() -> FastAPI:
         if req.intent:
             def _plan_and_start():
                 try:
-                    _run_autodev_cmd(
+                    _stream_autodev_cmd(
                         ["autodev", "plan", "--intent", req.intent],
                         cwd=project_dir,
                         timeout=None,
+                        log_file=project_dir / "logs" / "autodev.log",
                     )
                     if req.auto_start:
                         _run_autodev_cmd(
@@ -357,14 +358,70 @@ def _run_autodev_cmd(cmd: list[str], cwd: Path, timeout: int | None = 60) -> str
     return result.stdout
 
 
+def _stream_autodev_cmd(cmd: list[str], cwd: Path, log_file: Path) -> None:
+    """Run an autodev CLI command synchronously and stream output to a log file."""
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(f"\n[autodev web] Executing: {' '.join(cmd)}\n")
+        f.flush()
+        env = dict(os.environ)
+        # We can use subprocess.Popen and read line-by-line
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(cwd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env=env,
+        )
+        if proc.stdout:
+            for line in proc.stdout:
+                f.write(line)
+                f.flush()
+        proc.wait()
+        if proc.returncode != 0:
+            f.write(f"[autodev web] Command failed with exit code {proc.returncode}\n")
+            raise RuntimeError(f"Command failed: {' '.join(cmd)}")
+        f.write(f"[autodev web] Command finished successfully\n")
+
+
+def _port_available(host: str, port: int) -> bool:
+    """Return True if we can bind to *host*:*port*."""
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    try:
+        sock.bind((host, port))
+        sock.close()
+        return True
+    except OSError:
+        sock.close()
+        return False
+
+
 def cmd_web(args: Any) -> int:
     """Handle ``autodev web``."""
     host = getattr(args, "host", "127.0.0.1")
     port = getattr(args, "port", 8080)
 
     app = create_app()
+
+    # Pre-check port availability (uvicorn swallows bind errors internally).
+    # Try up to 5 ports starting from the requested one.
+    chosen_port = port
+    for attempt in range(5):
+        candidate = port + attempt
+        if _port_available(host, candidate):
+            chosen_port = candidate
+            break
+        print(f"  端口 {candidate} 被占用，尝试 {candidate + 1}...")
+    else:
+        print(f"  错误：端口 {port}-{port + 4} 全部被占用。请用 --port 指定其他端口。")
+        return 1
+
     print(f"autodev 项目管理面板")
-    print(f"  地址: http://{host}:{port}")
+    print(f"  地址: http://{host}:{chosen_port}")
     print(f"  按 Ctrl+C 停止")
-    uvicorn.run(app, host=host, port=port, log_level="warning")
+    uvicorn.run(app, host=host, port=chosen_port, log_level="warning")
     return 0

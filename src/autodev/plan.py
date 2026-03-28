@@ -648,36 +648,76 @@ def run_backend_prompt(
     timeout: int | None = None,
     command_label: str = "plan",
 ) -> str:
-    """Run a one-shot backend prompt and return stdout text."""
+    """Run a one-shot backend prompt and return stdout text.
+
+    stderr (banner, progress) is streamed to the terminal in real-time.
+    stdout (the actual JSON response) is captured cleanly for parsing.
+    """
+    import sys
+    import threading
+
     backend = config.backend.default
     cmd, env = _build_plan_command(prompt, config)
 
+    def _stream_stderr(pipe):
+        """Drain stderr to the terminal so the user sees progress."""
+        try:
+            for line in pipe:
+                sys.stderr.write(line)
+                sys.stderr.flush()
+        except Exception:
+            pass
+
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=timeout,
+            bufsize=1,
             cwd=str(Path(config.project.code_dir)),
             env=env,
         )
+
+        # Stream stderr (banner / progress) to terminal in a background thread
+        stderr_thread = threading.Thread(
+            target=_stream_stderr, args=(proc.stderr,), daemon=True
+        )
+        stderr_thread.start()
+
+        # Capture stdout (the actual response) line-by-line
+        stdout_chunks: list[str] = []
+        if proc.stdout:
+            for line in proc.stdout:
+                sys.stderr.write(line)
+                sys.stderr.flush()
+                stdout_chunks.append(line)
+
+        proc.wait(timeout=timeout)
+        stderr_thread.join(timeout=5)
     except FileNotFoundError:
         raise RuntimeError(
             f"{backend} CLI not found. Install it to use 'autodev {command_label}'."
         )
     except subprocess.TimeoutExpired:
+<<<<<<< HEAD
         timeout_message = (
             f"{timeout // 60} minutes"
             if timeout is not None and timeout >= 60 and timeout % 60 == 0
             else f"{timeout} seconds"
         )
+=======
+        if 'proc' in locals():
+            proc.kill()
+>>>>>>> b65a455 (feat: add pptx-plugin auto-install and autodev pptx command)
         raise RuntimeError(f"{backend} CLI timed out after {timeout_message}")
 
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
-        raise RuntimeError(f"{backend} CLI failed (exit={result.returncode}): {stderr}")
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"{backend} CLI failed (exit={proc.returncode})"
+        )
 
-    return result.stdout
+    return "".join(stdout_chunks)
 
 
 def _extract_json(text: str) -> str:
@@ -705,7 +745,50 @@ def _extract_json(text: str) -> str:
     if json_lines:
         return "\n".join(json_lines)
 
-    # Last resort — find the first { and last }
+    # Last resort — some backends echo the full prompt on stdout, which
+    # includes a JSON *template* that also contains "tasks".  We locate the
+    # LAST top-level JSON object in the text by finding the last `"tasks"`
+    # key and expanding outward to the enclosing `{ ... }` via brace-depth
+    # counting.  This is far more reliable than enumerating all brace pairs.
+    import json as _json
+
+    # Walk backwards from the last occurrence of '"tasks"' to find the
+    # real response object (the prompt template appears earlier).
+    anchor = stripped.rfind('"tasks"')
+    if anchor == -1:
+        anchor = len(stripped)  # fall through to extreme fallback
+
+    # From anchor, walk LEFT to find the matching opening '{' (depth 0)
+    depth = 0
+    obj_start = -1
+    for i in range(anchor, -1, -1):
+        ch = stripped[i]
+        if ch == '}':
+            depth += 1
+        elif ch == '{':
+            if depth == 0:
+                obj_start = i
+                break
+            depth -= 1
+
+    if obj_start != -1:
+        # From obj_start, walk RIGHT to find the matching closing '}'
+        depth = 0
+        for i in range(obj_start, len(stripped)):
+            ch = stripped[i]
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    candidate = stripped[obj_start : i + 1]
+                    try:
+                        _json.loads(candidate)
+                        return candidate
+                    except _json.JSONDecodeError:
+                        break
+
+    # Extreme fallback
     start = stripped.find("{")
     end = stripped.rfind("}")
     if start != -1 and end != -1 and end > start:

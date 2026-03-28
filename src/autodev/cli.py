@@ -18,6 +18,7 @@ from autodev.cli_session import cmd_attach, cmd_list, cmd_stop
 from autodev.cli_skills import cmd_skills_doctor, cmd_skills_list, cmd_skills_recommend
 from autodev.cli_task import add_task_parser
 from autodev.cli_tool import cmd_install_skills
+from autodev.cli_pptx import cmd_pptx
 
 
 def _add_run_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -177,6 +178,14 @@ def _add_web_parser(subparsers: argparse._SubParsersAction) -> None:
         parser.set_defaults(func=_web_missing)
 
 
+def _add_pptx_parser(subparsers: argparse._SubParsersAction) -> None:
+    parser = subparsers.add_parser(
+        "pptx",
+        help="Generate a project report PPTX using AI and pptx-plugin skills",
+    )
+    parser.set_defaults(func=cmd_pptx)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level CLI parser."""
     parser = argparse.ArgumentParser(
@@ -200,6 +209,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_attach_parser(subparsers)
     _add_stop_parser(subparsers)
     _add_web_parser(subparsers)
+    _add_pptx_parser(subparsers)
     return parser
 
 

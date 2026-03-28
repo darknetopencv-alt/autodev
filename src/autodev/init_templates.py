@@ -150,6 +150,9 @@ This is the canonical, tool-neutral rule file for this project.
 - Use `.skills/autodev-runtime/references/task-lifecycle.md` for autodev runtime semantics
 - Use `.skills/find-skills/SKILL.md` when the user wants to discover or install another skill
 - Use `.skills/skill-creator/SKILL.md` when the user wants to create or improve a skill
+- For PPTX generation tasks, read `.skills/ppt-orchestra-skill/SKILL.md` first for overall planning
+- For PPTX slide generation, use the agents in `.skills/pptx-agents/` (cover, TOC, content, section-divider, summary)
+- For PPTX styling, use `.skills/color-font-skill/SKILL.md` and `.skills/design-style-skill/SKILL.md`
 - Prefer non-interactive, testable, reversible changes
 - Avoid destructive git commands unless explicitly requested
 - Keep task metadata accurate; `autodev` finalizes success and appends to `progress.txt`
