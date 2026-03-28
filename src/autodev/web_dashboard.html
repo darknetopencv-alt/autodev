@@ -1,616 +1,1114 @@
 <!doctype html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>autodev - 项目管理面板</title>
   <style>
     :root {
-      --bg: #0b1020;
-      --panel: #121a31;
-      --panel-2: #182344;
-      --border: #2a365d;
-      --text: #eff4ff;
-      --muted: #9fb0d8;
+      --bg-app: #0e0e0e;
+      --bg-sidebar: #131316;
+      --bg-panel: #1a1a1f;
+      --bg-panel-hover: #222228;
+      --bg-selected: #2a2a35;
+      --border-color: #27272a;
+      --text-main: #f3f4f6;
+      --text-muted: #a1a1aa;
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --btn-primary-bg: #ffffff;
+      --btn-primary-text: #000000;
+
       --running: #2dd4bf;
       --completed: #22c55e;
       --blocked: #f97316;
       --pending: #60a5fa;
       --waiting: #facc15;
       --idle: #94a3b8;
-      --warning: #f59e0b;
-      --accent: #818cf8;
+      --planning: #818cf8;
       --danger: #ef4444;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: "IBM Plex Sans", "Segoe UI", "Microsoft YaHei", sans-serif;
-      background:
-        radial-gradient(circle at top left, rgba(96,165,250,0.18), transparent 32%),
-        radial-gradient(circle at top right, rgba(45,212,191,0.14), transparent 28%),
-        linear-gradient(180deg, #08101d 0%, var(--bg) 100%);
-      color: var(--text);
-      min-height: 100vh;
-    }
-    .page { max-width: 1400px; margin: 0 auto; padding: 24px; }
 
-    /* Header */
-    .header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; }
-    .header h1 span { color: var(--accent); }
-    .header-actions { display: flex; gap: 12px; align-items: center; }
+
+    body {
+      font-family: "Inter", "IBM Plex Sans", "Segoe UI", sans-serif;
+      background: var(--bg-app);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
 
     /* Buttons */
     .btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border);
-      background: var(--panel-2); color: var(--text); cursor: pointer;
-      font-size: 14px; font-weight: 600; transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-panel);
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
     }
-    .btn:hover { background: rgba(129,140,248,0.2); border-color: var(--accent); }
-    .btn-primary { background: rgba(129,140,248,0.25); border-color: var(--accent); }
-    .btn-primary:hover { background: rgba(129,140,248,0.4); }
-    .btn-danger { border-color: var(--danger); color: var(--danger); }
-    .btn-danger:hover { background: rgba(239,68,68,0.2); }
-    .btn-sm { padding: 6px 14px; font-size: 13px; border-radius: 8px; }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn:hover {
+      background: var(--bg-panel-hover);
+      border-color: #3f3f46;
+    }
+
+    .btn-primary {
+      background: var(--btn-primary-bg);
+      color: var(--btn-primary-text);
+      border-color: transparent;
+      font-weight: 600;
+    }
+
+    .btn-primary:hover {
+      background: #e5e5e5;
+      border-color: transparent;
+    }
+
+    .btn-danger {
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: var(--danger);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
     /* Badges */
     .badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      padding: 4px 10px; border-radius: 999px; font-size: 12px;
-      font-weight: 700; letter-spacing: 0.04em; border: 1px solid currentColor;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid currentColor;
     }
-    .badge-running { color: var(--running); background: rgba(45,212,191,0.12); }
-    .badge-completed { color: var(--completed); background: rgba(34,197,94,0.12); }
-    .badge-blocked { color: var(--blocked); background: rgba(249,115,22,0.12); }
-    .badge-pending { color: var(--pending); background: rgba(96,165,250,0.12); }
-    .badge-waiting { color: var(--waiting); background: rgba(250,204,21,0.12); }
-    .badge-idle { color: var(--idle); background: rgba(148,163,184,0.14); }
-    .badge-planning { color: var(--accent); background: rgba(129,140,248,0.12); }
 
-    /* Cards grid */
-    .project-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    .badge-running {
+      color: var(--running);
+      background: rgba(45, 212, 191, 0.1);
+    }
+
+    .badge-completed {
+      color: var(--completed);
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .badge-blocked {
+      color: var(--blocked);
+      background: rgba(249, 115, 22, 0.1);
+    }
+
+    .badge-pending {
+      color: var(--pending);
+      background: rgba(96, 165, 250, 0.1);
+    }
+
+    .badge-waiting {
+      color: var(--waiting);
+      background: rgba(250, 204, 21, 0.1);
+    }
+
+    .badge-idle {
+      color: var(--idle);
+      background: rgba(148, 163, 184, 0.1);
+    }
+
+    .badge-planning {
+      color: var(--planning);
+      background: rgba(129, 140, 248, 0.1);
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .user-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .workspace-label {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .btn-new-project {
+      width: 100%;
+      justify-content: center;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 12px 0 8px 8px;
+    }
+
+    .project-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .project-item:hover {
+      background: var(--bg-panel-hover);
+      color: var(--text-main);
+    }
+
+    .project-item.active {
+      background: var(--bg-selected);
+      color: var(--text-main);
+    }
+
+    .project-item-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .project-item-icon {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .project-item.active .project-item-icon {
+      color: var(--accent-purple);
+    }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border-color);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Main Area */
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-app);
+      position: relative;
+    }
+
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .empty-state h2 {
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 12px;
+      color: var(--text-main);
+    }
+
+    .detail-view {
+      display: none;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .detail-view.active {
+      display: flex;
+    }
+
+    .main-header {
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-app);
+      z-index: 10;
+    }
+
+    .title-group {
+      display: flex;
+      align-items: center;
       gap: 16px;
     }
-    .project-card {
-      background: rgba(18,26,49,0.92); border: 1px solid var(--border);
-      border-radius: 16px; padding: 20px; cursor: pointer;
-      transition: all 0.2s; position: relative;
-    }
-    .project-card:hover { border-color: var(--accent); transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(129,140,248,0.15); }
-    .card-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; }
-    .card-name { font-size: 18px; font-weight: 700; }
-    .card-backend { color: var(--muted); font-size: 12px; margin-top: 4px; }
-    .card-task { color: var(--muted); font-size: 13px; margin-top: 8px; }
-    .card-task strong { color: var(--text); }
 
-    /* Progress bar */
-    .progress-bar { height: 6px; background: var(--panel-2); border-radius: 3px; margin-top: 12px; overflow: hidden; }
-    .progress-fill { height: 100%; background: var(--completed); border-radius: 3px; transition: width 0.5s; }
-    .progress-text { color: var(--muted); font-size: 12px; margin-top: 4px; text-align: right; }
-
-    /* Empty state */
-    .empty-state {
-      text-align: center; padding: 80px 20px; color: var(--muted);
+    .main-title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
-    .empty-state h2 { font-size: 24px; margin-bottom: 12px; color: var(--text); }
-    .empty-state p { margin-bottom: 20px; }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .scroll-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    /* Stats */
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 20px;
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* Execution Blocks (Like the antigravity execution plan) */
+    .execution-plan {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+    }
+
+    .execution-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .execution-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--accent-purple);
+      text-transform: uppercase;
+    }
+
+    .execution-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .execution-body {
+      padding: 16px;
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .execution-body strong {
+      color: var(--text-main);
+    }
+
+    .current-task-detail {
+      padding-left: 12px;
+      border-left: 2px solid var(--accent-purple);
+      margin-top: 8px;
+    }
+
+    /* Grid layout for Task Queue & Logs */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .task-queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .task-item-title {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .task-item-id {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    /* Logs */
+    .terminal {
+      background: #000;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      height: 500px;
+      overflow-y: auto;
+      color: #a1a1aa;
+    }
+
+    .terminal-line {
+      margin-bottom: 2px;
+      word-break: break-all;
+    }
+
+    .terminal-line:last-child {
+      margin-bottom: 0;
+    }
 
     /* Modal */
     .modal-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-      z-index: 1000; align-items: center; justify-content: center;
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
     }
-    .modal-overlay.active { display: flex; }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
     .modal {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
-      padding: 28px; width: 520px; max-width: 90vw; max-height: 90vh; overflow-y: auto;
-    }
-    .modal h2 { font-size: 22px; margin-bottom: 20px; }
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--muted); }
-    .form-group input, .form-group textarea, .form-group select {
-      width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border);
-      background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit;
-    }
-    .form-group textarea { min-height: 120px; resize: vertical; }
-    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-      outline: none; border-color: var(--accent);
-    }
-    .form-check { display: flex; align-items: center; gap: 8px; }
-    .form-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-    .form-error { color: var(--danger); font-size: 13px; margin-top: 6px; display: none; }
-
-    /* Detail view */
-    .detail-view { display: none; }
-    .detail-view.active { display: block; }
-    .list-view.hidden { display: none; }
-    .back-btn { margin-bottom: 20px; }
-    .detail-header {
-      background: rgba(18,26,49,0.92); border: 1px solid var(--border);
-      border-radius: 18px; padding: 24px; margin-bottom: 20px;
-    }
-    .detail-title { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-    .detail-meta { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin-top: 12px; }
-    .detail-stats {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 16px;
-    }
-    .stat {
-      padding: 14px; background: var(--panel-2); border: 1px solid var(--border);
-      border-radius: 12px;
-    }
-    .stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
-    .stat-value { font-size: 24px; font-weight: 700; }
-
-    /* Current task */
-    .current-task-panel {
-      background: rgba(18,26,49,0.92); border: 1px solid var(--border);
-      border-radius: 16px; padding: 20px; margin-bottom: 16px;
-    }
-    .current-task-panel h3 { font-size: 16px; margin-bottom: 12px; color: var(--muted); }
-    .current-task-id { color: var(--running); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
-    .current-task-title { font-size: 18px; font-weight: 700; margin-top: 4px; }
-    .current-task-meta { color: var(--muted); font-size: 13px; margin-top: 8px; }
-
-    /* Task queue */
-    .task-queue {
-      background: rgba(18,26,49,0.92); border: 1px solid var(--border);
-      border-radius: 16px; padding: 20px; margin-bottom: 16px;
-    }
-    .task-queue h3 { font-size: 16px; margin-bottom: 12px; }
-    .task-row {
-      padding: 12px; border-radius: 10px; border: 1px solid var(--border);
-      background: rgba(24,35,68,0.84); margin-bottom: 8px;
-      display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    }
-    .task-info { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; flex: 1; }
-    .task-id { color: var(--muted); font-size: 12px; letter-spacing: 0.06em; }
-    .task-title { font-size: 14px; font-weight: 600; }
-
-    /* Log viewer */
-    .log-panel {
-      background: rgba(18,26,49,0.92); border: 1px solid var(--border);
-      border-radius: 16px; padding: 20px; margin-bottom: 16px;
-    }
-    .log-panel h3 { font-size: 16px; margin-bottom: 12px; }
-    .log-content {
-      background: #080e1a; border-radius: 10px; padding: 14px;
-      font-family: "JetBrains Mono", "Fira Code", monospace; font-size: 12px;
-      line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap;
-      word-break: break-all; color: var(--muted);
+      background: var(--bg-sidebar);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      width: 480px;
+      max-width: 90vw;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
     }
 
-    /* Detail layout */
-    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    @media (max-width: 900px) {
-      .detail-grid, .detail-stats, .project-grid { grid-template-columns: 1fr; }
+    .modal h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
     }
 
-    /* Notifications */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-app);
+      color: var(--text-main);
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: var(--accent-purple);
+    }
+
+    .form-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .form-check input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent-purple);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .form-error {
+      color: var(--danger);
+      font-size: 12px;
+      margin-top: 6px;
+      display: none;
+    }
+
+    /* Toasts */
     .toast {
-      position: fixed; bottom: 24px; right: 24px; z-index: 2000;
-      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-      padding: 14px 20px; font-size: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      transition: all 0.3s; opacity: 0; transform: translateY(10px);
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 2000;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s;
+      opacity: 0;
+      transform: translateY(10px);
     }
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.error { border-color: var(--danger); }
-    .toast.success { border-color: var(--completed); }
 
-    /* Spinner */
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      border-left: 3px solid var(--danger);
+    }
+
+    .toast.success {
+      border-left: 3px solid var(--completed);
+    }
+
     .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid var(--border); border-top-color: var(--accent);
-      border-radius: 50%; animation: spin 0.8s linear infinite;
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border-color);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .detail-actions { display: flex; gap: 10px; margin-top: 16px; }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
   </style>
 </head>
+
 <body>
-<div class="page">
-  <!-- Header -->
-  <div class="header">
-    <h1><span>autodev</span> 项目管理面板</h1>
-    <div class="header-actions">
-      <span id="session-count" style="color:var(--muted);font-size:14px;"></span>
-      <button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button>
-    </div>
-  </div>
 
-  <!-- List View -->
-  <div id="list-view" class="list-view">
-    <div id="project-grid" class="project-grid"></div>
-    <div id="empty-state" class="empty-state" style="display:none;">
-      <h2>还没有项目</h2>
-      <p>点击"新建项目"开始创建你的第一个 autodev 项目</p>
-      <button class="btn btn-primary" onclick="openNewProjectModal()">+ 新建项目</button>
-    </div>
-  </div>
-
-  <!-- Detail View -->
-  <div id="detail-view" class="detail-view">
-    <button class="btn btn-sm back-btn" onclick="showListView()">← 返回项目列表</button>
-    <div id="detail-content"></div>
-  </div>
-</div>
-
-<!-- New Project Modal -->
-<div id="new-project-modal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
-  <div class="modal">
-    <h2>新建项目</h2>
-    <div class="form-group">
-      <label>项目目录</label>
-      <input type="text" id="project-directory" placeholder="例如: /home/user/projects/my-todo-app" autocomplete="off">
-      <div class="form-error" id="dir-error"></div>
-    </div>
-    <div class="form-group">
-      <label>开发说明 / 项目需求</label>
-      <textarea id="project-intent" placeholder="描述你想要构建的项目，例如：&#10;构建一个基于 FastAPI 的待办事项服务，使用 SQLite 存储，提供 CRUD 接口，包含单元测试。"></textarea>
-      <div class="form-error" id="intent-error"></div>
-    </div>
-    <div class="form-group">
-      <label>AI 后端</label>
-      <select id="project-backend">
-        <option value="codex">Codex</option>
-        <option value="claude">Claude</option>
-        <option value="gemini">Gemini</option>
-        <option value="opencode">OpenCode</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <div class="form-check">
-        <input type="checkbox" id="project-autostart" checked>
-        <label for="project-autostart" style="margin:0">创建后自动开始执行</label>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="user-profile">
+        <div class="avatar">A</div>
+        <div class="user-info">
+          <div class="user-name">Auto-Dev CLI</div>
+          <div class="workspace-label">Local Workspace</div>
+        </div>
       </div>
+      <button class="btn btn-primary btn-new-project" onclick="openNewProjectModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        新建项目
+      </button>
     </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeNewProjectModal()">取消</button>
-      <button class="btn btn-primary" id="create-btn" onclick="createProject()">创建项目</button>
+
+    <div class="nav-label">Projects</div>
+    <div class="sidebar-nav" id="sidebar-projects">
+      <!-- Projects rendered here -->
     </div>
-  </div>
-</div>
 
-<!-- Toast -->
-<div id="toast" class="toast"></div>
+    <div class="sidebar-footer">
+      <span id="session-count">0 个活跃会话</span>
+      <span style="display:flex; gap:8px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--completed);margin-top:4px;"></span>
+        Connected
+      </span>
+    </div>
+  </aside>
 
-<script>
-const API = '';
-let currentProject = null;
-let refreshTimer = null;
+  <!-- Main Area -->
+  <main class="main-area">
 
-// ==================== API Calls ====================
+    <div id="empty-state" class="empty-state">
+      <h2>欢迎使用 Auto-Dev</h2>
+      <p>请在左侧选择一个项目，或者点击新建项目开始。</p>
+    </div>
 
-async function apiGet(path) {
-  const resp = await fetch(API + path);
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({detail: resp.statusText}));
-    throw new Error(err.detail || resp.statusText);
-  }
-  return resp.json();
-}
+    <div id="detail-view" class="detail-view">
+      <header class="main-header">
+        <div class="title-group">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            style="color:var(--accent-purple)">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          <h1 class="main-title" id="project-title">Project Name</h1>
+          <span id="project-badge" class="badge">Idle</span>
+        </div>
+        <div class="header-actions">
+          <button class="btn" id="btn-start" onclick="startCurrentProject()">▶ 启动</button>
+          <button class="btn btn-danger" id="btn-stop" onclick="stopCurrentProject()">■ 停止</button>
+        </div>
+      </header>
 
-async function apiPost(path, body) {
-  const resp = await fetch(API + path, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({detail: resp.statusText}));
-    throw new Error(err.detail || resp.statusText);
-  }
-  return resp.json();
-}
+      <div class="scroll-content">
+        <!-- Stats Row -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">总进度</div>
+            <div class="stat-value" id="stat-progress">0%</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">已完成任务</div>
+            <div class="stat-value" id="stat-completed">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">总任务数</div>
+            <div class="stat-value" id="stat-total">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">当前轮次</div>
+            <div class="stat-value" id="stat-epoch">1/1</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">后端模型</div>
+            <div class="stat-value" id="stat-backend" style="font-size:16px; margin-top:6px;">codex</div>
+          </div>
+        </div>
 
-// ==================== List View ====================
-
-async function loadProjects() {
-  try {
-    const data = await apiGet('/api/projects');
-    renderProjectGrid(data.projects);
-    document.getElementById('session-count').textContent =
-      `${data.active_sessions} 个活跃会话`;
-  } catch (e) {
-    console.error('Failed to load projects:', e);
-  }
-}
-
-function renderProjectGrid(projects) {
-  const grid = document.getElementById('project-grid');
-  const empty = document.getElementById('empty-state');
-
-  if (!projects || projects.length === 0) {
-    grid.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  grid.innerHTML = projects.map(p => {
-    const status = p.session_alive ? 'running' : (p.status || 'idle');
-    const statusLabel = statusLabels[status] || status;
-    const badgeClass = badgeClasses[status] || 'badge-idle';
-    const total = p.counts?.total || 0;
-    const completed = p.counts?.completed || 0;
-    const pct = total > 0 ? Math.round(completed / total * 100) : 0;
-    const currentTask = p.current_task ? `<div class="card-task">当前: <strong>${esc(p.current_task)}</strong></div>` : '';
-
-    return `
-      <div class="project-card" onclick="showDetailView('${esc(p.name)}')">
-        <div class="card-header">
+        <div class="content-grid">
+          <!-- Left Column -->
           <div>
-            <div class="card-name">${esc(p.name)}</div>
-            <div class="card-backend">路径: ${esc(p.path || '')}　|　后端: ${esc(p.backend || 'codex')}</div>
-          </div>
-          <span class="badge ${badgeClass}">${statusLabel}</span>
-        </div>
-        ${currentTask}
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <div class="progress-text">${completed}/${total} 任务完成 (${pct}%)</div>
-      </div>
-    `;
-  }).join('');
-}
-
-const statusLabels = {
-  idle: '空闲', starting: '启动中', running: '运行中', validating: '验证中',
-  completed: '已完成', blocked: '已阻塞', pending: '等待中',
-  planning: '规划中', waiting: '等待中',
-};
-const badgeClasses = {
-  idle: 'badge-idle', starting: 'badge-running', running: 'badge-running',
-  validating: 'badge-running', completed: 'badge-completed', blocked: 'badge-blocked',
-  pending: 'badge-pending', planning: 'badge-planning', waiting: 'badge-waiting',
-};
-
-// ==================== Detail View ====================
-
-async function showDetailView(name) {
-  currentProject = name;
-  document.getElementById('list-view').classList.add('hidden');
-  document.getElementById('detail-view').classList.add('active');
-  await loadProjectDetail(name);
-  startDetailRefresh();
-}
-
-function showListView() {
-  currentProject = null;
-  document.getElementById('detail-view').classList.remove('active');
-  document.getElementById('list-view').classList.remove('hidden');
-  stopDetailRefresh();
-  loadProjects();
-}
-
-function startDetailRefresh() {
-  stopDetailRefresh();
-  refreshTimer = setInterval(() => {
-    if (currentProject) loadProjectDetail(currentProject);
-  }, 3000);
-}
-
-function stopDetailRefresh() {
-  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
-}
-
-async function loadProjectDetail(name) {
-  try {
-    const [status, tasks, logData] = await Promise.all([
-      apiGet(`/api/projects/${encodeURIComponent(name)}/status`),
-      apiGet(`/api/projects/${encodeURIComponent(name)}/tasks`).catch(() => ({tasks: []})),
-      apiGet(`/api/projects/${encodeURIComponent(name)}/log`).catch(() => ({lines: []})),
-    ]);
-    renderDetailView(name, status, tasks, logData);
-  } catch (e) {
-    console.error('Failed to load detail:', e);
-    showToast('加载项目详情失败: ' + e.message, 'error');
-  }
-}
-
-function renderDetailView(name, status, tasks, logData) {
-  const run = status.run || {};
-  const counts = status.counts || {};
-  const runStatus = status.session_alive ? (run.status || 'running') : (run.status || 'idle');
-  const statusLabel = statusLabels[runStatus] || runStatus;
-  const badgeClass = badgeClasses[runStatus] || 'badge-idle';
-  const total = counts.total || 0;
-  const completed = counts.completed || 0;
-  const pct = total > 0 ? Math.round(completed / total * 100) : 0;
-
-  const taskRows = (tasks.tasks || []).map(t => {
-    const ts = t.status || 'pending';
-    const tLabel = statusLabels[ts] || ts;
-    const tBadge = badgeClasses[ts] || 'badge-pending';
-    return `
-      <div class="task-row">
-        <div class="task-info">
-          <span class="task-id">${esc(t.id || '')}</span>
-          <span class="task-title">${esc(t.title || t.name || '')}</span>
-        </div>
-        <span class="badge ${tBadge}">${tLabel}</span>
-      </div>
-    `;
-  }).join('') || '<div style="color:var(--muted);padding:12px;">暂无任务</div>';
-
-  const logLines = (logData.lines || []).join('\n') || '暂无日志';
-
-  const canStart = !status.session_alive;
-  const canStop = status.session_alive;
-
-  document.getElementById('detail-content').innerHTML = `
-    <div class="detail-header">
-      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">
-        <div>
-          <div class="detail-title">${esc(name)}</div>
-          <div class="detail-meta">
-            <span>后端: ${esc(status.backend || 'codex')}</span>
-            <span>轮次: ${run.current_epoch || 1}/${run.max_epochs || 1}</span>
-            <span>更新: ${esc(run.updated_at || '-')}</span>
-          </div>
-        </div>
-        <span class="badge ${badgeClass}">${statusLabel}</span>
-      </div>
-      <div class="detail-stats">
-        <div class="stat"><div class="stat-label">总计</div><div class="stat-value">${total}</div></div>
-        <div class="stat"><div class="stat-label">运行中</div><div class="stat-value">${counts.running || 0}</div></div>
-        <div class="stat"><div class="stat-label">已完成</div><div class="stat-value">${completed}</div></div>
-        <div class="stat"><div class="stat-label">已阻塞</div><div class="stat-value">${counts.blocked || 0}</div></div>
-        <div class="stat"><div class="stat-label">进度</div><div class="stat-value">${pct}%</div></div>
-      </div>
-      <div class="detail-actions">
-        <button class="btn btn-primary btn-sm" onclick="startProject('${esc(name)}')" ${canStart ? '' : 'disabled'}>
-          ▶ 启动
-        </button>
-        <button class="btn btn-danger btn-sm" onclick="stopProject('${esc(name)}')" ${canStop ? '' : 'disabled'}>
-          ■ 停止
-        </button>
-      </div>
-    </div>
-
-    <div class="detail-grid">
-      <div>
-        <div class="current-task-panel">
-          <h3>当前任务</h3>
-          ${run.current_task_id ? `
-            <div class="current-task-id">${esc(run.current_task_id)}</div>
-            <div class="current-task-title">${esc(run.current_task_title || '')}</div>
-            <div class="current-task-meta">
-              尝试 ${run.current_attempt || 0}/${run.max_attempts || 0} ·
-              耗时 ${run.heartbeat_elapsed_seconds || 0}秒
+            <div class="execution-plan">
+              <div class="execution-header">
+                <span class="execution-badge">EXECUTION</span>
+                <span class="execution-title">当前任务 / Current Task</span>
+              </div>
+              <div class="execution-body" id="current-task-body">
+                <div style="color:var(--text-muted)">当前没有正在执行的任务...</div>
+              </div>
             </div>
-          ` : '<div style="color:var(--muted);">当前没有正在执行的任务</div>'}
-        </div>
-        <div class="task-queue">
-          <h3>任务队列</h3>
-          ${taskRows}
-        </div>
-      </div>
-      <div>
-        <div class="log-panel">
-          <h3>运行日志</h3>
-          <div class="log-content" id="log-content">${esc(logLines)}</div>
+
+            <div class="execution-plan">
+              <div class="execution-header" style="background:transparent; border:none; padding-bottom:0;">
+                <span class="execution-title" style="color:var(--text-muted); font-size:12px;">任务队列 (Queue)</span>
+              </div>
+              <div class="execution-body task-queue-list" id="task-queue-list">
+                <!-- Task rows go here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div>
+            <div class="execution-plan" style="background:#000;">
+              <div class="execution-header" style="border-bottom-color:#333;">
+                <span class="execution-badge"
+                  style="background:rgba(59,130,246,0.15); color:var(--accent-blue);">TERMINAL</span>
+                <span class="execution-title">运行日志</span>
+              </div>
+              <div class="terminal" id="log-content">
+                <!-- log output -->
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  `;
+  </main>
 
-  // Auto-scroll log
-  const logEl = document.getElementById('log-content');
-  if (logEl) logEl.scrollTop = logEl.scrollHeight;
-}
+  <!-- New Project Modal -->
+  <div id="new-project-modal" class="modal-overlay" onclick="closeModalOnOverlay(event)">
+    <div class="modal">
+      <h2>新建项目</h2>
+      <div class="form-group">
+        <label>项目目录 Directory</label>
+        <input type="text" id="project-directory" placeholder="e.g. /home/user/projects/my-app" autocomplete="off">
+        <div class="form-error" id="dir-error"></div>
+      </div>
+      <div class="form-group">
+        <label>开发说明 / 需求 Intent</label>
+        <textarea id="project-intent" placeholder="描述你想要构建的项目..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>AI 后端 Backend</label>
+        <select id="project-backend">
+          <option value="codex">Codex</option>
+          <option value="claude">Claude</option>
+          <option value="gemini">Gemini</option>
+          <option value="opencode">OpenCode</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-top:20px;">
+        <div class="form-check">
+          <input type="checkbox" id="project-autostart" checked>
+          <label for="project-autostart" style="margin:0; font-weight:500;">创建后自动开始执行 (Auto-start)</label>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeNewProjectModal()">取消 (Cancel)</button>
+        <button class="btn btn-primary" id="create-btn" onclick="createProject()">创建项目 (Create)</button>
+      </div>
+    </div>
+  </div>
 
-// ==================== Actions ====================
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
 
-async function startProject(name) {
-  try {
-    await apiPost(`/api/projects/${encodeURIComponent(name)}/start`, {});
-    showToast(`项目 ${name} 已启动`, 'success');
-    setTimeout(() => loadProjectDetail(name), 1000);
-  } catch (e) {
-    showToast('启动失败: ' + e.message, 'error');
-  }
-}
+  <script>
+    const API = '';
+    let currentProject = null;
+    let refreshTimer = null;
+    let globalProjects = [];
 
-async function stopProject(name) {
-  try {
-    await apiPost(`/api/projects/${encodeURIComponent(name)}/stop`, {});
-    showToast(`项目 ${name} 已停止`, 'success');
-    setTimeout(() => loadProjectDetail(name), 1000);
-  } catch (e) {
-    showToast('停止失败: ' + e.message, 'error');
-  }
-}
+    // ==================== API Calls ====================
+    async function apiGet(path) {
+      const resp = await fetch(API + path);
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      return resp.json();
+    }
 
-// ==================== New Project Modal ====================
+    async function apiPost(path, body) {
+      const resp = await fetch(API + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+        throw new Error(err.detail || resp.statusText);
+      }
+      return resp.json();
+    }
 
-function openNewProjectModal() {
-  document.getElementById('new-project-modal').classList.add('active');
-  document.getElementById('project-directory').focus();
-}
+    // ==================== Sidebar List View ====================
+    async function loadProjects() {
+      try {
+        const data = await apiGet('/api/projects');
+        globalProjects = data.projects || [];
+        renderSidebarProjects(globalProjects);
+        document.getElementById('session-count').textContent = `${data.active_sessions || 0} 个活跃会话`;
 
-function closeNewProjectModal() {
-  document.getElementById('new-project-modal').classList.remove('active');
-  document.getElementById('project-directory').value = '';
-  document.getElementById('project-intent').value = '';
-  document.getElementById('dir-error').style.display = 'none';
-  document.getElementById('intent-error').style.display = 'none';
-}
+        // If a project is currently open, verify it still exists
+        if (currentProject) {
+          const exists = globalProjects.find(p => p.name === currentProject);
+          if (!exists) {
+            closeDetailView();
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load projects:', e);
+      }
+    }
 
-function closeModalOnOverlay(e) {
-  if (e.target === e.currentTarget) closeNewProjectModal();
-}
+    function renderSidebarProjects(projects) {
+      const nav = document.getElementById('sidebar-projects');
+      if (!projects || projects.length === 0) {
+        nav.innerHTML = '<div style="padding:12px; color:var(--text-muted); font-size:12px;">暂无项目</div>';
+        return;
+      }
 
-async function createProject() {
-  const directory = document.getElementById('project-directory').value.trim();
-  const intent = document.getElementById('project-intent').value.trim();
-  const backend = document.getElementById('project-backend').value;
-  const autostart = document.getElementById('project-autostart').checked;
+      nav.innerHTML = projects.map(p => {
+        const isActive = p.name === currentProject;
+        return `
+          <div class="project-item ${isActive ? 'active' : ''}" onclick="selectProject('${esc(p.name)}')">
+            <div class="project-item-name">
+              <svg class="project-item-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              ${esc(p.name)}
+            </div>
+            ${p.session_alive ? '<span style="width:6px;height:6px;border-radius:50%;background:var(--running);"></span>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
 
-  // Validate
-  let valid = true;
-  if (!directory) {
-    document.getElementById('dir-error').textContent = '请输入项目目录路径';
-    document.getElementById('dir-error').style.display = 'block';
-    valid = false;
-  } else {
-    document.getElementById('dir-error').style.display = 'none';
-  }
-  if (!intent) {
-    document.getElementById('intent-error').textContent = '请输入开发说明';
-    document.getElementById('intent-error').style.display = 'block';
-    valid = false;
-  } else {
-    document.getElementById('intent-error').style.display = 'none';
-  }
-  if (!valid) return;
+    // ==================== Detail View ====================
+    function selectProject(name) {
+      currentProject = name;
+      renderSidebarProjects(globalProjects); // update active state in sidebar
 
-  const btn = document.getElementById('create-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 创建中...';
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('detail-view').classList.add('active');
 
-  try {
-    const result = await apiPost('/api/projects', { directory, intent, backend, auto_start: autostart });
-    showToast(`项目 ${result.name} 创建成功!`, 'success');
-    closeNewProjectModal();
+      document.getElementById('project-title').textContent = name;
+
+      // Clear current data while loading
+      document.getElementById('log-content').innerHTML = 'Loading...';
+
+      startDetailRefresh();
+      loadProjectDetail(name);
+    }
+
+    function closeDetailView() {
+      currentProject = null;
+      document.getElementById('detail-view').classList.remove('active');
+      document.getElementById('empty-state').style.display = 'flex';
+      renderSidebarProjects(globalProjects);
+      stopDetailRefresh();
+    }
+
+    function startDetailRefresh() {
+      stopDetailRefresh();
+      refreshTimer = setInterval(() => {
+        if (currentProject) loadProjectDetail(currentProject);
+      }, 2000);
+    }
+
+    function stopDetailRefresh() {
+      if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    }
+
+    const statusLabels = {
+      idle: '空闲 Idle', starting: '启动中 Starting', running: '运行中 Running', validating: '验证中 Validating',
+      completed: '已完成 Completed', blocked: '已阻塞 Blocked', pending: '等待中 Pending',
+      planning: '规划中 Planning', waiting: '等待中 Waiting',
+    };
+    const badgeClasses = {
+      idle: 'badge-idle', starting: 'badge-running', running: 'badge-running',
+      validating: 'badge-running', completed: 'badge-completed', blocked: 'badge-blocked',
+      pending: 'badge-pending', planning: 'badge-planning', waiting: 'badge-waiting',
+    };
+
+    async function loadProjectDetail(name) {
+      try {
+        const [status, tasks, logData] = await Promise.all([
+          apiGet(`/api/projects/${encodeURIComponent(name)}/status`),
+          apiGet(`/api/projects/${encodeURIComponent(name)}/tasks`).catch(() => ({ tasks: [] })),
+          apiGet(`/api/projects/${encodeURIComponent(name)}/log`).catch(() => ({ lines: [] })),
+        ]);
+        if (currentProject !== name) return; // switched away during await
+        renderDetailView(name, status, tasks, logData);
+      } catch (e) {
+        console.error('Failed to load detail:', e);
+      }
+    }
+
+    function renderDetailView(name, status, tasks, logData) {
+      const run = status.run || {};
+      const counts = status.counts || {};
+      const runStatus = status.session_alive ? (run.status || 'running') : (run.status || 'idle');
+
+      const statusLabel = statusLabels[runStatus] || runStatus;
+      const badgeClass = badgeClasses[runStatus] || 'badge-idle';
+
+      const total = counts.total || 0;
+      const completed = counts.completed || 0;
+      const pct = total > 0 ? Math.round(completed / total * 100) : 0;
+
+      // Header update
+      const badgeEl = document.getElementById('project-badge');
+      badgeEl.className = `badge ${badgeClass}`;
+      badgeEl.textContent = statusLabel;
+
+      document.getElementById('btn-start').disabled = status.session_alive;
+      document.getElementById('btn-stop').disabled = !status.session_alive;
+
+      // Stats update
+      document.getElementById('stat-progress').textContent = `${pct}%`;
+      document.getElementById('stat-completed').textContent = completed;
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-epoch').textContent = `${run.current_epoch || 1}/${run.max_epochs || 1}`;
+      document.getElementById('stat-backend').textContent = status.backend || 'codex';
+
+      // Current Task
+      const curTaskEl = document.getElementById('current-task-body');
+      if (run.current_task_id) {
+        curTaskEl.innerHTML = `
+           <div style="font-size:11px; font-family:monospace; color:var(--text-muted); margin-bottom:4px;">${esc(run.current_task_id)}</div>
+           <strong style="font-size:14px;">${esc(run.current_task_title || 'Undisclosed Task')}</strong>
+           <div class="current-task-detail">
+             <div>尝试 (Attempt): ${run.current_attempt || 0}/${run.max_attempts || 0}</div>
+             <div>耗时 (Elapsed): ${run.heartbeat_elapsed_seconds || 0}s</div>
+           </div>
+         `;
+      } else {
+        curTaskEl.innerHTML = `<div style="color:var(--text-muted)">Project is currently resting...</div>`;
+      }
+
+      // Task Queue
+      const queueEl = document.getElementById('task-queue-list');
+      const taskRows = (tasks.tasks || []).map(t => {
+        const ts = t.status || 'pending';
+        const tLabel = statusLabels[ts] || ts;
+        const tBadge = badgeClasses[ts] || 'badge-pending';
+        return `
+          <div class="task-item">
+            <div>
+              <div class="task-item-title">${esc(t.title || t.name || '')}</div>
+              <div class="task-item-id">${esc(t.id || '')}</div>
+            </div>
+            <span class="badge ${tBadge}">${tLabel}</span>
+          </div>
+        `;
+      }).join('');
+      queueEl.innerHTML = taskRows || '<div style="color:var(--text-muted); padding:12px 0;">No tasks in queue</div>';
+
+      // Log
+      const logEl = document.getElementById('log-content');
+      const isScrolledToBottom = logEl.scrollHeight - logEl.clientHeight <= logEl.scrollTop + 20;
+
+      const logLines = (logData.lines || []).map(line => `<div class="terminal-line">${esc(line)}</div>`).join('');
+      logEl.innerHTML = logLines || 'Waiting for output...';
+
+      if (isScrolledToBottom) {
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    }
+
+    // ==================== Actions ====================
+    async function startCurrentProject() {
+      if (!currentProject) return;
+      try {
+        await apiPost(`/api/projects/${encodeURIComponent(currentProject)}/start`, {});
+        showToast(`Started project: ${currentProject}`, 'success');
+        setTimeout(() => loadProjectDetail(currentProject), 500);
+        setTimeout(loadProjects, 500);
+      } catch (e) {
+        showToast('Failed to start: ' + e.message, 'error');
+      }
+    }
+
+    async function stopCurrentProject() {
+      if (!currentProject) return;
+      try {
+        await apiPost(`/api/projects/${encodeURIComponent(currentProject)}/stop`, {});
+        showToast(`Stopped project: ${currentProject}`, 'success');
+        setTimeout(() => loadProjectDetail(currentProject), 500);
+        setTimeout(loadProjects, 500);
+      } catch (e) {
+        showToast('Failed to stop: ' + e.message, 'error');
+      }
+    }
+
+    // ==================== Modal ====================
+    function openNewProjectModal() {
+      document.getElementById('new-project-modal').classList.add('active');
+      document.getElementById('project-directory').focus();
+    }
+
+    function closeNewProjectModal() {
+      document.getElementById('new-project-modal').classList.remove('active');
+      document.getElementById('project-directory').value = '';
+      document.getElementById('project-intent').value = '';
+      document.getElementById('dir-error').style.display = 'none';
+    }
+
+    function closeModalOnOverlay(e) {
+      if (e.target === e.currentTarget) closeNewProjectModal();
+    }
+
+    async function createProject() {
+      const directory = document.getElementById('project-directory').value.trim();
+      const intent = document.getElementById('project-intent').value.trim();
+      const backend = document.getElementById('project-backend').value;
+      const autostart = document.getElementById('project-autostart').checked;
+
+      if (!directory) {
+        document.getElementById('dir-error').textContent = 'Please enter project directory path';
+        document.getElementById('dir-error').style.display = 'block';
+        return;
+      }
+
+      const btn = document.getElementById('create-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> 创建中...';
+
+      try {
+        const result = await apiPost('/api/projects', { directory, intent, backend, auto_start: autostart });
+        showToast(`Created project: ${result.name}`, 'success');
+        closeNewProjectModal();
+        await loadProjects();
+        selectProject(result.name); // automatically select it
+      } catch (e) {
+        showToast('创建失败 (Create failed): ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '创建项目 (Create)';
+      }
+    }
+
+    // ==================== Utils ====================
+    function esc(s) {
+      if (s === null || s === undefined) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(msg, type) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = `toast ${type || ''} show`;
+      setTimeout(() => { toast.className = 'toast'; }, 4000);
+    }
+
+    // Init
     loadProjects();
-  } catch (e) {
-    showToast('创建失败: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '创建项目';
-  }
-}
-
-// ==================== Utilities ====================
-
-function esc(s) {
-  if (!s) return '';
-  const div = document.createElement('div');
-  div.textContent = String(s);
-  return div.innerHTML;
-}
-
-function showToast(msg, type) {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = `toast ${type || ''} show`;
-  setTimeout(() => { toast.className = 'toast'; }, 4000);
-}
-
-// ==================== Init ====================
-
-loadProjects();
-setInterval(() => {
-  if (!currentProject) loadProjects();
-}, 3000);
-</script>
+    setInterval(() => {
+      loadProjects();
+    }, 4000);
+  </script>
 </body>
+
 </html>
