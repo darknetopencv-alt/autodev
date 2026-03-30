@@ -286,6 +286,134 @@ class RunnerTests(unittest.TestCase):
             mock_auto_commit.assert_called_once()
             self.assertEqual(mock_auto_commit.call_args.args[3], ["src/main.py"])
 
+    def test_run_marks_blocked_only_queue_as_blocked_not_completed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                "\n".join(
+                    [
+                        "[project]",
+                        'name = "demo"',
+                        'code_dir = "."',
+                        "",
+                        "[files]",
+                        'task_json = "task.json"',
+                        'progress = "progress.txt"',
+                        'log_dir = "logs"',
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+            save_tasks(
+                Path(cfg.files.task_json),
+                {
+                    "project": "demo",
+                    "tasks": [
+                        {"id": "P0-1", "title": "stuck", "passes": False, "blocked": True},
+                    ],
+                },
+            )
+            logger = Logger(log_file=Path(cfg.files.log_dir) / "autodev.log", use_color=False)
+
+            with patch("autodev.runner.check_prerequisites", return_value=[]), patch(
+                "autodev.runner.load_template", return_value="unused"
+            ), patch("autodev.runner.write_idle_task_brief"), patch(
+                "autodev.runner.update_runtime_artifacts"
+            ) as mock_update:
+                result = run(cfg, logger, dry_run=False, epochs=1)
+
+            self.assertEqual(result.exit_code, 2)
+            run_updates = [call.kwargs["run_updates"] for call in mock_update.call_args_list]
+            self.assertTrue(any(update["status"] == "blocked" for update in run_updates))
+            self.assertFalse(
+                any(
+                    update["status"] == "completed" and update["message"] == "All tasks finished"
+                    for update in run_updates
+                )
+            )
+
+    def test_run_uses_waiting_status_after_task_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                "\n".join(
+                    [
+                        "[project]",
+                        'name = "demo"',
+                        'code_dir = "."',
+                        "",
+                        "[files]",
+                        'task_json = "task.json"',
+                        'progress = "progress.txt"',
+                        'log_dir = "logs"',
+                        "",
+                        "[run]",
+                        "max_tasks = 1",
+                        "max_retries = 1",
+                        "delay_between_tasks = 0",
+                        "heartbeat_interval = 1",
+                        "",
+                        "[git]",
+                        "auto_commit = false",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+            save_tasks(
+                Path(cfg.files.task_json),
+                {
+                    "project": "demo",
+                    "tasks": [
+                        {
+                            "id": "P0-1",
+                            "title": "finish task",
+                            "description": "do the thing",
+                            "steps": ["step 1"],
+                            "docs": [],
+                            "passes": False,
+                            "blocked": False,
+                            "verification": {"validate_commands": []},
+                        }
+                    ],
+                },
+            )
+            logger = Logger(log_file=Path(cfg.files.log_dir) / "autodev.log", use_color=False)
+
+            with patch("autodev.runner.check_prerequisites", return_value=[]), patch(
+                "autodev.runner.load_template", return_value="Execute {{task_id}}"
+            ), patch("autodev.runner.render_prompt", return_value="run task"), patch(
+                "autodev.runner.snapshot_directories", side_effect=[{}, {"src/main.py": "hash"}]
+            ), patch(
+                "autodev.runner.diff_snapshots", return_value=["src/main.py"]
+            ), patch(
+                "autodev.runner.run_backend",
+                return_value=BackendResult(exit_code=0, log_file=Path(cfg.files.log_dir) / "attempt.log"),
+            ), patch("autodev.runner.run_gate") as mock_gate, patch(
+                "autodev.runner.update_runtime_artifacts"
+            ) as mock_update, patch("autodev.runner.append_progress"), patch(
+                "autodev.runner.time.sleep"
+            ), patch("autodev.runner.auto_commit"):
+                mock_gate.return_value.status = "passed"
+                mock_gate.return_value.checks = []
+                mock_gate.return_value.errors = []
+                mock_gate.return_value.warnings = []
+
+                result = run(cfg, logger, dry_run=False, epochs=1)
+
+            self.assertEqual(result.exit_code, 0)
+            run_updates = [call.kwargs["run_updates"] for call in mock_update.call_args_list]
+            self.assertTrue(
+                any(
+                    update["status"] == "waiting"
+                    and update["message"] == "Completed P0-1; preparing next task"
+                    for update in run_updates
+                )
+            )
+
     def test_run_does_not_pause_or_skip_reflection_on_verification_only_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -361,7 +489,7 @@ class RunnerTests(unittest.TestCase):
             mock_reflect.assert_called_once()
             mock_sleep.assert_called_once_with(0)
 
-    def test_run_experiment_task_reverts_regression_and_completes(self) -> None:
+    def test_run_experiment_task_reverts_regression_and_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             config_path = root / "autodev.toml"
@@ -457,9 +585,10 @@ class RunnerTests(unittest.TestCase):
 
             data = load_tasks(Path(cfg.files.task_json))
             task = data["tasks"][0]
-            self.assertEqual(result.exit_code, 0)
-            self.assertTrue(task["passes"])
-            self.assertFalse(task["blocked"])
+            self.assertEqual(result.exit_code, 2)
+            self.assertFalse(task["passes"])
+            self.assertTrue(task["blocked"])
+            self.assertIn("no improvements kept", task["block_reason"])
             self.assertEqual(mock_gate.call_count, 2)
             self.assertFalse(mock_gate.call_args_list[0].kwargs["enforce_change_requirements"])
             self.assertEqual(mock_gate.call_args_list[1].kwargs["best_before"], 100.0)
@@ -483,6 +612,106 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(lines[1]["commit_sha"], "abc123")
             self.assertEqual(lines[1]["reverted_sha"], "def456")
             self.assertEqual(lines[1]["best_before"], 100.0)
+
+    def test_run_experiment_task_with_improvement_completes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            config_path = root / "autodev.toml"
+            config_path.write_text(
+                "\n".join(
+                    [
+                        "[project]",
+                        'name = "demo"',
+                        'code_dir = "."',
+                        "",
+                        "[files]",
+                        'task_json = "task.json"',
+                        'progress = "progress.txt"',
+                        'log_dir = "logs"',
+                        'attempt_log_subdir = "attempts"',
+                        "",
+                        "[run]",
+                        "max_tasks = 1",
+                        "max_retries = 1",
+                        "delay_between_tasks = 0",
+                        "heartbeat_interval = 1",
+                        "",
+                        "[git]",
+                        "auto_commit = false",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            cfg = load_config(config_path)
+            save_tasks(
+                Path(cfg.files.task_json),
+                {
+                    "project": "demo",
+                    "tasks": [
+                        {
+                            "id": "P1-3",
+                            "title": "tune latency",
+                            "description": "reduce latency",
+                            "steps": ["measure baseline", "optimize"],
+                            "docs": [],
+                            "passes": False,
+                            "blocked": False,
+                            "execution_mode": "experiment",
+                            "verification": {"validate_commands": ["python3 -c pass"]},
+                            "experiment": {
+                                "max_iterations": 1,
+                                "rollback_on_regression": True,
+                                "keep_on_equal": False,
+                                "commit_prefix": "experiment",
+                                "no_improvement_threshold": 2,
+                                "invalid_result_threshold": 2,
+                                "goal_metric": {
+                                    "name": "latency_ms",
+                                    "direction": "lower_is_better",
+                                    "source": "json_stdout",
+                                    "json_path": "$.metrics.latency_ms",
+                                    "min_improvement": 1,
+                                    "unchanged_tolerance": 0,
+                                },
+                            },
+                        }
+                    ],
+                },
+            )
+            logger = Logger(log_file=Path(cfg.files.log_dir) / "autodev.log", use_color=False)
+            baseline_gate = Mock(status="passed", checks=[], errors=[], warnings=[])
+            baseline_gate.metric = Mock(name="latency_ms", value=100.0, outcome="measured", details="baseline")
+            improved_gate = Mock(status="passed", checks=[], errors=[], warnings=[])
+            improved_gate.metric = Mock(name="latency_ms", value=90.0, outcome="improved", details="faster")
+
+            with patch("autodev.runner.check_prerequisites", return_value=[]), patch(
+                "autodev.runner.load_template", return_value="Execute {{task_id}}"
+            ), patch("autodev.runner.render_prompt", return_value="run task"), patch(
+                "autodev.runner.snapshot_directories", side_effect=[{}, {"src/main.py": "before"}, {"src/main.py": "after"}]
+            ), patch(
+                "autodev.runner.diff_snapshots", return_value=["src/main.py"]
+            ), patch(
+                "autodev.runner.run_backend",
+                return_value=BackendResult(exit_code=0, log_file=Path(cfg.files.log_dir) / "attempt.log"),
+            ), patch("autodev.runner.run_gate", side_effect=[baseline_gate, improved_gate]), patch(
+                "autodev.runner.is_git_repo", return_value=True
+            ), patch(
+                "autodev.runner.create_experiment_commit", return_value="abc123"
+            ), patch("autodev.runner.revert_commit") as mock_revert, patch(
+                "autodev.runner.update_runtime_artifacts"
+            ), patch("autodev.runner.append_progress"), patch("autodev.runner.time.sleep"), patch(
+                "autodev.runner.auto_commit"
+            ), patch(
+                "autodev.runner.read_recent_git_history", return_value=[],
+            ):
+                result = run(cfg, logger, dry_run=False, epochs=1)
+
+            data = load_tasks(Path(cfg.files.task_json))
+            task = data["tasks"][0]
+            self.assertEqual(result.exit_code, 0)
+            self.assertTrue(task["passes"])
+            self.assertFalse(task["blocked"])
+            mock_revert.assert_not_called()
 
     def test_run_experiment_task_blocks_when_regression_cannot_rollback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

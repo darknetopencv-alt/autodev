@@ -1051,14 +1051,19 @@ class BackendAndPlanTests(unittest.TestCase):
             """
         )
 
-        result = unittest.mock.Mock(returncode=0, stdout="ok", stderr="")
+        proc = unittest.mock.Mock()
+        proc.stdout = ["ok"]
+        proc.stderr = []
+        proc.returncode = 0
+        proc.wait = unittest.mock.Mock(return_value=0)
         with patch("autodev.plan._build_plan_command", return_value=(["codex", "exec", "hello"], None)), patch(
-            "autodev.plan.subprocess.run", return_value=result
-        ) as mock_run:
+            "autodev.plan.subprocess.Popen", return_value=proc
+        ) as mock_popen:
             output = run_backend_prompt("hello", cfg)
 
         self.assertEqual(output, "ok")
-        self.assertIsNone(mock_run.call_args.kwargs["timeout"])
+        proc.wait.assert_called_once_with(timeout=None)
+        self.assertEqual(mock_popen.call_args.args[0], ["codex", "exec", "hello"])
 
 
 if __name__ == "__main__":

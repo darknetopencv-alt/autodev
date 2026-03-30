@@ -271,6 +271,27 @@ class TaskStoreTests(unittest.TestCase):
         self.assertFalse(task["blocked"])
         self.assertEqual(task["block_reason"], "")
 
+    def test_ensure_task_store_defaults_prefers_blocked_over_completed_for_conflicts(self) -> None:
+        data = {
+            "project": "demo",
+            "tasks": [
+                {
+                    "id": "P0-3",
+                    "title": "conflicted",
+                    "passes": True,
+                    "blocked": True,
+                    "block_reason": "needs review",
+                }
+            ],
+        }
+
+        ensure_task_store_defaults(data)
+
+        task = data["tasks"][0]
+        self.assertFalse(task["passes"])
+        self.assertTrue(task["blocked"])
+        self.assertEqual(task["block_reason"], "needs review")
+
     def test_ensure_task_store_defaults_normalizes_legacy_experiment_into_completion_and_execution(self) -> None:
         data = {
             "project": "demo",

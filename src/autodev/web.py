@@ -24,6 +24,10 @@ except ImportError:
 
 from pydantic import BaseModel
 
+from autodev.config import load_config
+from autodev.runtime_status import build_runtime_snapshot
+from autodev.task_store import load_tasks
+
 
 def create_app() -> FastAPI:
     """Create and return the FastAPI application."""
@@ -264,14 +268,7 @@ def _load_project_status(project_dir: Path, name: str) -> dict:
     session_name = f"{prefix}-{name}"
     alive = is_session_alive(session_name)
 
-    status_path = project_dir / "logs" / "runtime-status.json"
-    if status_path.exists():
-        try:
-            data = json.loads(status_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            data = _default_status(name, config)
-    else:
-        data = _default_status(name, config)
+    data = _load_project_runtime_snapshot(project_dir, name, config)
 
     data["session_alive"] = alive
     return data
@@ -299,34 +296,69 @@ def _default_status(name: str, config: dict) -> dict:
 
 
 def _load_project_tasks(project_dir: Path) -> dict:
-    """Load task.json for a project."""
-    task_path = project_dir / "task.json"
-    if not task_path.exists():
+    """Load normalized task state for a project."""
+    snapshot = _load_project_runtime_snapshot(project_dir, project_dir.name)
+    tasks = snapshot.get("tasks", [])
+    if not isinstance(tasks, list):
         return {"tasks": []}
+    return {
+        "tasks": [
+            {
+                "id": str(task.get("id", "")),
+                "title": str(task.get("title", task.get("name", ""))),
+                "status": str(task.get("status", "pending")),
+            }
+            for task in tasks
+            if isinstance(task, dict)
+        ]
+    }
+
+def _load_project_runtime_snapshot(
+    project_dir: Path,
+    name: str,
+    config: dict | None = None,
+) -> dict:
+    """Load a normalized runtime snapshot, rebuilding from task.json when needed."""
+    config = config if isinstance(config, dict) else _load_project_config(project_dir)
+    default = _default_status(name, config)
+
+    status_path = project_dir / "logs" / "runtime-status.json"
+    runtime_state: dict = {}
+    if status_path.exists():
+        try:
+            loaded = json.loads(status_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                runtime_state = loaded
+        except (json.JSONDecodeError, OSError):
+            runtime_state = {}
+
+    config_path = project_dir / "autodev.toml"
+    if not config_path.exists():
+        if runtime_state:
+            snapshot = dict(default)
+            snapshot.update(runtime_state)
+            return snapshot
+        return default
+
     try:
-        data = json.loads(task_path.read_text(encoding="utf-8"))
-        tasks = data.get("tasks", [])
-        return {
-            "tasks": [
-                {
-                    "id": t.get("id", ""),
-                    "title": t.get("title", t.get("name", "")),
-                    "status": _task_display_status(t),
-                }
-                for t in tasks
-            ]
-        }
-    except (json.JSONDecodeError, OSError):
-        return {"tasks": []}
+        runtime_config = load_config(config_path)
+    except Exception:
+        if runtime_state:
+            snapshot = dict(default)
+            snapshot.update(runtime_state)
+            return snapshot
+        return default
 
+    task_path = project_dir / "task.json"
+    if task_path.exists():
+        try:
+            task_data = load_tasks(task_path)
+        except (FileNotFoundError, ValueError):
+            task_data = {"project": name, "tasks": []}
+    else:
+        task_data = {"project": name, "tasks": []}
 
-def _task_display_status(task: dict) -> str:
-    """Determine display status for a task."""
-    if task.get("blocked"):
-        return "blocked"
-    if task.get("passes"):
-        return "completed"
-    return "pending"
+    return build_runtime_snapshot(runtime_config, task_data, runtime_state)
 
 
 def _load_project_log(project_dir: Path, tail_lines: int = 100) -> dict:

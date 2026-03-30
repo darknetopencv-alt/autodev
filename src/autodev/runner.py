@@ -266,6 +266,15 @@ def _inactive_task_runtime_scope() -> dict[str, object]:
     }
 
 
+def _idle_run_status_from_counts(counts: dict[str, int]) -> tuple[str, str]:
+    """Return the idle runner status/message that matches the queue state."""
+    if counts.get("pending", 0) > 0:
+        return "waiting", "Preparing next task"
+    if counts.get("blocked", 0) > 0:
+        return "blocked", "No runnable tasks remain; blocked tasks require review"
+    return "completed", "All tasks finished"
+
+
 def _completion_outcome_text(gate_result) -> str:
     """Extract the normalized completion outcome label from a gate result."""
     return str(_gate_completion_attr(gate_result, "outcome", "") or "")
@@ -438,7 +447,7 @@ def _run_experiment_task(
             config,
             latest_data,
             run_updates=_experiment_run_updates(
-                status="running",
+                status="waiting",
                 message=f"Task {task_id} blocked; preparing next task",
                 **_inactive_task_runtime_scope(),
                 max_attempts=max_iterations,
@@ -765,35 +774,42 @@ def _run_experiment_task(
         summary = f"Experiment iteration {iteration} failed with exit={backend_result.exit_code}"
 
         if backend_result.exit_code == 0:
-            gate_result = run_gate(
-                task,
-                config,
-                changed_files,
-                code_dir,
-                baseline_metric=baseline_metric,
-                best_before=best_before_metric,
-            )
-            metric_result = gate_result.metric
-            completion_outcome = _completion_outcome_text(gate_result)
-            completion_details = str(_gate_completion_attr(gate_result, "details", "") or "")
-            if gate_result.status != "passed":
-                logger.warning(f"Experiment verification failed for task {task_id}")
-                for err in gate_result.errors:
-                    logger.warning(f"  - {err}")
-                outcome = completion_outcome or "invalid"
-                summary = "; ".join(gate_result.errors[:3]) if gate_result.errors else (completion_details or summary)
-            elif metric_result is None or metric_result.value is None or completion_outcome == "invalid":
+            if not changed_files:
                 outcome = "invalid"
-                summary = completion_details or (
-                    metric_result.details
-                    if metric_result is not None and metric_result.details
-                    else "Experiment metric result missing"
+                summary = (
+                    f"Experiment iteration {iteration}: backend succeeded but produced "
+                    "no file changes; skipping gate (commit-before-compare contract)"
                 )
             else:
-                outcome = completion_outcome or (metric_result.outcome or "measured")
-                summary = (
-                    f"Experiment iteration {iteration}: {metric_name}={metric_result.value:g} ({outcome})"
+                gate_result = run_gate(
+                    task,
+                    config,
+                    changed_files,
+                    code_dir,
+                    baseline_metric=baseline_metric,
+                    best_before=best_before_metric,
                 )
+                metric_result = gate_result.metric
+                completion_outcome = _completion_outcome_text(gate_result)
+                completion_details = str(_gate_completion_attr(gate_result, "details", "") or "")
+                if gate_result.status != "passed":
+                    logger.warning(f"Experiment verification failed for task {task_id}")
+                    for err in gate_result.errors:
+                        logger.warning(f"  - {err}")
+                    outcome = completion_outcome or "invalid"
+                    summary = "; ".join(gate_result.errors[:3]) if gate_result.errors else (completion_details or summary)
+                elif metric_result is None or metric_result.value is None or completion_outcome == "invalid":
+                    outcome = "invalid"
+                    summary = completion_details or (
+                        metric_result.details
+                        if metric_result is not None and metric_result.details
+                        else "Experiment metric result missing"
+                    )
+                else:
+                    outcome = completion_outcome or (metric_result.outcome or "measured")
+                    summary = (
+                        f"Experiment iteration {iteration}: {metric_name}={metric_result.value:g} ({outcome})"
+                    )
 
         revert_required = outcome == "unchanged" and not keep_on_equal
         block_after_iteration_reason = ""
@@ -835,13 +851,15 @@ def _run_experiment_task(
             kept_count += 1
             no_improvement_streak = 0
         elif outcome == "unchanged":
-            no_improvement_streak += 1
             if keep_on_equal and metric_result is not None and metric_result.value is not None:
                 best_metric = metric_result.value
                 best_gate_result = gate_result
                 best_changed_files = changed_files
                 successful_attempt = iteration
                 kept_count += 1
+                no_improvement_streak = 0
+            else:
+                no_improvement_streak += 1
         elif outcome == "regressed":
             no_improvement_streak += 1
         else:
@@ -902,6 +920,15 @@ def _run_experiment_task(
         if iteration < max_iterations:
             time.sleep(config.run.delay_between_tasks)
 
+    if kept_count == 0:
+        _block(
+            f"Experiment completed {completed_iterations} iteration(s) with no improvements kept "
+            f"(reverted={reverted_count}, invalid={invalid_total})",
+            gate_result=best_gate_result,
+            changed_files=best_changed_files,
+        )
+        return
+
     latest_data = _load_latest_data()
     if not mark_task_passed(latest_data, task_id):
         logger.error(f"Failed to mark task {task_id} as completed – check task.json")
@@ -954,7 +981,7 @@ def _run_experiment_task(
         config,
         latest_data,
         run_updates=_experiment_run_updates(
-            status="running",
+            status="waiting",
             message=f"Completed {task_id}; preparing next task",
             current_task_id="",
             current_task_title="",
@@ -1241,6 +1268,7 @@ def _run_loop(
 
         task = get_next_task(data)
         if task is None:
+            idle_status, idle_message = _idle_run_status_from_counts(counts)
             logger.success(
                 f"All tasks done! "
                 f"(completed={counts['completed']}, blocked={counts['blocked']}, "
@@ -1250,8 +1278,8 @@ def _run_loop(
                 config,
                 data,
                 run_updates={
-                    "status": "completed",
-                    "message": "All tasks finished",
+                    "status": idle_status,
+                    "message": idle_message,
                     "finished_at": _timestamp_utc(),
                     "current_task_id": "",
                     "current_task_title": "",
@@ -1783,7 +1811,7 @@ def _run_loop(
                 run_updates=_task_runtime_updates(
                     task,
                     last_completion_outcome=_completion_outcome_text(gate_result),
-                    status="running",
+                    status="waiting",
                     message=f"Task {task_id} blocked; preparing next task",
                     **_inactive_task_runtime_scope(),
                 ),
@@ -1845,7 +1873,7 @@ def _run_loop(
                 run_updates=_task_runtime_updates(
                     task,
                     last_completion_outcome=_completion_outcome_text(success_gate_result),
-                    status="running",
+                    status="waiting",
                     message=f"Completed {task_id}; preparing next task",
                     **_inactive_task_runtime_scope(),
                 ),

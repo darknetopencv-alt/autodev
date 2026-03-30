@@ -1133,7 +1133,8 @@
 
       // Task Queue
       const queueEl = document.getElementById('task-queue-list');
-      const taskRows = (tasks.tasks || []).map(t => {
+      const queueTasks = (status.tasks && status.tasks.length) ? status.tasks : (tasks.tasks || []);
+      const taskRows = queueTasks.map(t => {
         const ts = t.status || 'pending';
         const tBadge = badgeClasses[ts] || 'badge-outline';
         return `

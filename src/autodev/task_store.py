@@ -8,7 +8,9 @@ in the AR-Translator automation toolchain.
 from __future__ import annotations
 
 import json
+import os
 import shutil
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -48,6 +50,9 @@ def ensure_task_defaults(task: dict) -> dict:
     """Normalize one task entry in-place and return it."""
     task["passes"] = normalize_bool(task.get("passes"), default=False)
     task["blocked"] = normalize_bool(task.get("blocked"), default=False)
+    if task["blocked"]:
+        # Blocked is terminal and should take precedence over stale pass flags.
+        task["passes"] = False
     task["block_reason"] = normalize_block_reason(task.get("block_reason"))
     task["description"] = str(task.get("description", "") or "")
     task["steps"] = _normalize_str_list(task.get("steps"))
@@ -160,6 +165,37 @@ def get_recent_project_learning_summaries(data: dict, *, limit: int) -> list[str
 # ---------------------------------------------------------------------------
 
 
+@contextmanager
+def _file_lock(path: Path):
+    """Advisory file lock for concurrent task.json access.
+
+    Uses ``fcntl`` on POSIX and ``msvcrt`` on Windows.  Falls back to a
+    no-op context manager when neither is available.
+    """
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = lock_path.open("w")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            msvcrt.locking(lock_fd.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
+        lock_fd.close()
+
+
 def load_tasks(path: Path) -> dict:
     """Read and parse a task JSON file.
 
@@ -172,10 +208,11 @@ def load_tasks(path: Path) -> dict:
     ValueError
         If the file content is not valid JSON.
     """
-    try:
-        text = path.read_text(encoding="utf-8-sig")
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Task file not found: {path}")
+    with _file_lock(path):
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Task file not found: {path}")
 
     try:
         data = json.loads(text)
@@ -194,10 +231,11 @@ def save_tasks(path: Path, data: dict) -> None:
     characters), two-space indentation, and a trailing newline, matching
     the canonical format of the existing task files.
     """
-    path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    with _file_lock(path):
+        path.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
 
 def backup_task_file(path: Path) -> Path:
@@ -210,7 +248,26 @@ def backup_task_file(path: Path) -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup_path = path.with_suffix(path.suffix + f".bak.{stamp}")
     shutil.copy2(path, backup_path)
+    cleanup_old_backups(path)
     return backup_path
+
+
+def cleanup_old_backups(path: Path, keep: int = 5) -> list[Path]:
+    """Remove old backups of *path*, keeping the *keep* most recent.
+
+    Returns the list of removed backup paths.
+    """
+    pattern = path.name + ".bak.*"
+    backups = sorted(
+        path.parent.glob(pattern),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    removed: list[Path] = []
+    for old in backups[keep:]:
+        old.unlink(missing_ok=True)
+        removed.append(old)
+    return removed
 
 
 # ---------------------------------------------------------------------------
